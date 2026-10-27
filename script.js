@@ -183,8 +183,20 @@ function renderizarCronograma() {
 
     scheduleList.innerHTML = '';
 
-    eventos.forEach(evento => {
-        const meta = obtenerEventoModificado(evento);
+    // Ordenar por hora de inicio efectiva (incluye cambios manuales).
+    // Ante horarios iguales se mantiene el orden original del día.
+    const eventosOrdenados = eventos
+        .map((evento, indice) => ({
+            evento,
+            meta: obtenerEventoModificado(evento),
+            indice
+        }))
+        .sort((a, b) => {
+            const diferencia = horaAMinutos(a.meta.horaInicio) - horaAMinutos(b.meta.horaInicio);
+            return diferencia !== 0 ? diferencia : a.indice - b.indice;
+        });
+
+    eventosOrdenados.forEach(({ evento, meta }) => {
 
         const item = document.createElement('div');
         item.className = 'schedule-item';
