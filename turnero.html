@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Turnero LNR - Probotae</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@600;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #e9edf2;
+            --bg-panel: #ffffff;
+            --text: #1a2332;
+            --text-soft: #5a6a7e;
+            --border: #c6d0dc;
+            --acento: #00c3d9;
+            --acento-texto: #007e8f;
+        }
+
+        [data-theme="dark"] {
+            --bg: #0d1420;
+            --bg-panel: #131c2b;
+            --text: #ffffff;
+            --text-soft: #9aa8bd;
+            --border: #26344a;
+            --acento: #00e5ff;
+            --acento-texto: #7feaff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+        }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        .turnero-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            background: var(--bg-panel);
+            border-bottom: 2px solid var(--border);
+            flex-wrap: wrap;
+        }
+
+        .turnero-header h1 {
+            flex: 1 1 auto;
+            font-family: 'Exo 2', sans-serif;
+            font-size: clamp(16px, 2.6vh, 24px);
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: var(--acento-texto);
+            text-align: center;
+        }
+
+        .turnero-btn {
+            display: inline-flex;
+            align-items: center;
+            padding: 7px 12px;
+            min-height: 36px;
+            background: var(--bg-panel);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            white-space: nowrap;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+
+        .turnero-btn:hover {
+            border-color: var(--acento);
+        }
+
+        .turnero-marco {
+            flex: 1;
+            position: relative;
+            min-height: 0;
+            max-width: 1100px;
+            width: 100%;
+            margin: 0 auto;
+            background: var(--bg-panel);
+            border-left: 2px solid var(--border);
+            border-right: 2px solid var(--border);
+        }
+
+        .turnero-marco iframe {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            border: 0;
+            background: #ffffff;
+        }
+
+        .turnero-marco.cargando iframe {
+            visibility: hidden;
+        }
+
+        .turnero-cargando {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            color: var(--text-soft);
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .turnero-marco:not(.cargando) .turnero-cargando {
+            display: none;
+        }
+
+        .turnero-fallback {
+            display: none;
+            padding: 14px;
+            text-align: center;
+            color: var(--text-soft);
+            font-size: 14px;
+            border-top: 1px solid var(--border);
+        }
+
+        .turnero-fallback a {
+            color: var(--acento-texto);
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+    <header class="turnero-header">
+        <a class="turnero-btn" href="index.html" title="Volver al tablero">← Tablero</a>
+        <h1>TURNERO · LIGA NACIONAL DE ROBÓTICA</h1>
+        <button id="themeToggle" class="turnero-btn" title="Cambiar tema">🌙 Modo Oscuro</button>
+        <a class="turnero-btn" href="https://lnr-argentina.com.ar/turnero/85" target="_blank" rel="noopener">
+            Abrir en pestaña nueva ↗
+        </a>
+    </header>
+
+    <div class="turnero-marco cargando" id="turneroMarco">
+        <div class="turnero-cargando">
+            <span>Cargando el turnero de la LNR…</span>
+            <span id="turneroAvisoCarga">Si demora, abrilo en una pestaña nueva con el botón de arriba.</span>
+        </div>
+        <iframe
+            id="turneroIframe"
+            src="https://lnr-argentina.com.ar/turnero/85"
+            title="Turnero de la Liga Nacional de Robótica">
+        </iframe>
+    </div>
+
+    <div class="turnero-fallback" id="turneroFallback">
+        Si el turnero no se muestra acá, abrilo directamente:
+        <a href="https://lnr-argentina.com.ar/turnero/85" target="_blank" rel="noopener">
+            lnr-argentina.com.ar/turnero/85
+        </a>
+    </div>
+
+    <script>
+        // Mismo tema que el tablero (clave compartida)
+        (function () {
+            const tema = localStorage.getItem('webliga-theme');
+            document.documentElement.setAttribute('data-theme', tema === 'dark' ? 'dark' : 'light');
+        })();
+
+        const botonTema = document.getElementById('themeToggle');
+        function actualizarBotonTema() {
+            const tema = document.documentElement.getAttribute('data-theme') || 'light';
+            botonTema.textContent = tema === 'dark' ? '☀️ Modo Claro' : '🌙 Modo Oscuro';
+        }
+        actualizarBotonTema();
+        botonTema.addEventListener('click', function () {
+            const tema = document.documentElement.getAttribute('data-theme') || 'light';
+            const nuevoTema = tema === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', nuevoTema);
+            localStorage.setItem('webliga-theme', nuevoTema);
+            actualizarBotonTema();
+        });
+
+        // Indicador de carga y aviso si el sitio externo no admite marcos
+        (function () {
+            const marco = document.getElementById('turneroMarco');
+            const iframe = document.getElementById('turneroIframe');
+            const avisoCarga = document.getElementById('turneroAvisoCarga');
+            let listo = false;
+
+            iframe.addEventListener('load', function () {
+                listo = true;
+                marco.classList.remove('cargando');
+            });
+
+            // Si a los 12 segundos no cargó, probablemente el sitio externo
+            // bloqueó el marco o la red está caída: ajustamos el mensaje de espera.
+            setTimeout(function () {
+                if (listo) return;
+                avisoCarga.textContent = 'El turnero está tardando más de lo esperado. ' +
+                    'Podés abrirlo en una pestaña nueva con el botón de arriba.';
+            }, 12000);
+        })();
+    </script>
+</body>
+</html>

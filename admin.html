@@ -29,6 +29,7 @@
             </div>
             <div class="admin-header-actions">
                 <a class="admin-button ghost" href="index.html" target="_blank" rel="noopener">Ver tablero</a>
+                <a class="admin-button ghost" href="turnero.html" target="_blank" rel="noopener">Turnero</a>
                 <a class="admin-button ghost" href="qr.html" target="_blank" rel="noopener">Ver QR</a>
                 <button type="button" class="admin-button ghost" id="themeToggle">🌙 Modo Oscuro</button>
                 <button type="button" class="admin-button ghost" id="logoutBtn" hidden>Salir</button>
@@ -39,8 +40,8 @@
             <strong>Falta configurar Supabase.</strong>
             <p>
                 Completá <code>supabase-config.js</code> y ejecutá el SQL de
-                <code>supabase/schema.sql</code>. La guía paso a paso está en
-                <code>GUIA-SUPABASE.md</code>.
+                <code>supabase/schema.sql</code> y <code>supabase/avisos.sql</code>.
+                La guía paso a paso está en <code>GUIA-SUPABASE.md</code>.
             </p>
         </div>
 
@@ -90,6 +91,28 @@
                     <p>Guardá cada fila. El tablero se actualiza solo, sin recargar la página.</p>
                 </div>
                 <div id="adminRows" class="admin-rows"></div>
+            </section>
+
+            <section class="admin-card">
+                <div class="admin-card-header">
+                    <h2>Aviso para el tablero</h2>
+                    <p>Notificación importante que se muestra en el tablero y en los celulares.</p>
+                </div>
+                <div class="admin-form">
+                    <label for="avisoTexto">Texto del aviso</label>
+                    <textarea id="avisoTexto" rows="2" maxlength="240" placeholder="Ej: Los turnos de la LNR ya están publicados en el turnero"></textarea>
+
+                    <label class="admin-check">
+                        <input type="checkbox" id="avisoActivo">
+                        <span>Mostrar el aviso en el tablero</span>
+                    </label>
+
+                    <div class="admin-actions">
+                        <button type="button" class="admin-button primary" id="avisoBtn">Guardar aviso</button>
+                    </div>
+                    <p class="admin-error" id="avisoError" hidden></p>
+                    <p class="admin-muted" id="avisoInfo"></p>
+                </div>
             </section>
 
             <section class="admin-card admin-qr-card">

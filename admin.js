@@ -106,6 +106,7 @@
         const backupBtn = document.getElementById('backupBtn');
         const downloadQrBtn = document.getElementById('downloadQrBtn');
         const adminRows = document.getElementById('adminRows');
+        const avisoBtn = document.getElementById('avisoBtn');
 
         loginForm.addEventListener('submit', iniciarSesion);
         logoutBtn.addEventListener('click', cerrarSesion);
@@ -114,6 +115,7 @@
         discardBtn.addEventListener('click', descartarCambios);
         backupBtn.addEventListener('click', descargarRespaldo);
         downloadQrBtn.addEventListener('click', descargarQR);
+        avisoBtn.addEventListener('click', guardarAvisoClick);
 
         adminRows.addEventListener('input', marcarCambios);
         adminRows.addEventListener('change', marcarCambios);
@@ -228,6 +230,93 @@
             mostrarToast('No se pudieron cargar los horarios. ' + (error.message || ''), true);
         } finally {
             mostrandoPanel = false;
+        }
+
+        cargarAvisoPanel();
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Aviso para el tablero                                              */
+    /* ------------------------------------------------------------------ */
+
+    async function cargarAvisoPanel() {
+        const texto = document.getElementById('avisoTexto');
+        const activo = document.getElementById('avisoActivo');
+        const info = document.getElementById('avisoInfo');
+        const error = document.getElementById('avisoError');
+
+        if (!texto) return;
+        error.hidden = true;
+
+        let aviso = null;
+
+        try {
+            aviso = await HorariosSync.obtenerAviso();
+        } catch (fallo) {
+            console.warn('No se pudo leer el aviso:', fallo);
+        }
+
+        if (!aviso) {
+            const cache = HorariosSync.leerCacheAviso ? HorariosSync.leerCacheAviso() : null;
+            aviso = cache;
+        }
+
+        if (aviso) {
+            texto.value = aviso.texto || '';
+            activo.checked = !!aviso.activo;
+
+            const marca = formatearFecha(aviso.actualizadoEn);
+            info.textContent = marca
+                ? 'Último cambio de la nube: ' + marca + (aviso.actualizadoPor ? ' · por ' + aviso.actualizadoPor : '.')
+                : 'Aviso guardado en la nube.';
+            return;
+        }
+
+        texto.value = '';
+        activo.checked = false;
+
+        if (/does not exist|schema cache|relation/i.test(HorariosSync.problemaAviso() || '')) {
+            info.textContent = 'La tabla de avisos todavía no existe: ejecutá supabase/avisos.sql en el SQL Editor de Supabase.';
+        } else {
+            info.textContent = 'Todavía no hay aviso guardado.';
+        }
+    }
+
+    async function guardarAvisoClick() {
+        const texto = document.getElementById('avisoTexto');
+        const activo = document.getElementById('avisoActivo');
+        const error = document.getElementById('avisoError');
+        const boton = document.getElementById('avisoBtn');
+
+        error.hidden = true;
+
+        const cambios = {
+            texto: texto.value,
+            activo: activo.checked
+        };
+
+        if (cambios.activo && !cambios.texto.trim()) {
+            error.textContent = 'Escribí el texto del aviso o desmarcá "Mostrar".';
+            error.hidden = false;
+            return;
+        }
+
+        boton.disabled = true;
+        boton.textContent = 'Guardando…';
+
+        try {
+            await HorariosSync.guardarAviso(cambios, sesion.user.email);
+            mostrarToast(
+                cambios.activo ? 'Aviso publicado en el tablero.' : 'Aviso guardado y apagado.',
+                false
+            );
+            await cargarAvisoPanel();
+        } catch (fallo) {
+            error.textContent = traducirErrorGuardado(fallo);
+            error.hidden = false;
+        } finally {
+            boton.disabled = false;
+            boton.textContent = 'Guardar aviso';
         }
     }
 

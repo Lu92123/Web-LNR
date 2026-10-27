@@ -231,6 +231,44 @@ body.admin-page {
     outline-offset: 1px;
 }
 
+.admin-form textarea {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 16px;
+    line-height: 1.4;
+    resize: vertical;
+    min-height: 64px;
+}
+
+.admin-form textarea:focus {
+    outline: 2px solid var(--neon-cyan);
+    outline-offset: 1px;
+}
+
+.admin-check {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+    color: var(--text-primary);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+}
+
+.admin-check input {
+    width: 20px;
+    height: 20px;
+    accent-color: var(--neon-cyan);
+    cursor: pointer;
+}
+
 .admin-form .admin-button {
     margin-top: 12px;
     min-height: 46px;

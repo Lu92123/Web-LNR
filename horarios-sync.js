@@ -13,7 +13,9 @@
     'use strict';
 
     const TABLA = 'horarios';
+    const TABLA_AVISOS = 'avisos';
     const CLAVE_CACHE = 'webliga-horarios-cache-v1';
+    const CLAVE_CACHE_AVISO = 'webliga-aviso-cache-v1';
     const INTERVALO_RESPALDO = 30000;
     const TIEMPO_MAXIMO_LECTURA = 12000;
     const TIEMPO_MAXIMO_ESCRITURA = 15000;
@@ -23,12 +25,16 @@
     let canal = null;
     let intervalo = null;
     let temporizadorRefresco = null;
+    let temporizadorAviso = null;
     let peticionActual = 0;
+    let peticionAvisoActual = 0;
 
     let alCambiar = null;
     let alEstado = null;
+    let alAviso = null;
     let ultimaSync = null;
     let estadoActual = 'inicial';
+    let falloAviso = '';
 
     /* ------------------------------------------------------------------ */
     /* Configuración y cliente                                            */
@@ -180,6 +186,57 @@
         }
     }
 
+    function leerCacheAviso() {
+        try {
+            const crudo = global.localStorage.getItem(CLAVE_CACHE_AVISO);
+            if (!crudo) return null;
+
+            const datos = JSON.parse(crudo);
+            if (!datos || typeof datos.texto !== 'string') return null;
+
+            return datos;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function guardarCacheAviso(aviso) {
+        try {
+            global.localStorage.setItem(CLAVE_CACHE_AVISO, JSON.stringify({
+                texto: aviso.texto,
+                activo: !!aviso.activo,
+                actualizadoEn: aviso.actualizadoEn || null,
+                guardadoEn: new Date().toISOString()
+            }));
+        } catch (e) {
+            // Sin espacio o navegación privada: seguimos funcionando online.
+        }
+    }
+
+    function filaAAviso(fila) {
+        return {
+            texto: fila.texto || '',
+            activo: !!fila.activo,
+            actualizadoEn: fila.actualizado_en || null,
+            actualizadoPor: fila.actualizado_por || null
+        };
+    }
+
+    function emitirAviso(aviso, origen) {
+        if (typeof alAviso !== 'function') return;
+
+        if (!aviso) {
+            alAviso(null, { origen: origen });
+            return;
+        }
+
+        // Un aviso sin texto no se muestra
+        alAviso(aviso.activo && aviso.texto ? aviso : null, {
+            origen: origen,
+            fecha: aviso.actualizadoEn
+        });
+    }
+
     function emitirCambio(overrides, origen) {
         ultimaSync = new Date();
 
@@ -265,6 +322,60 @@
         }
     }
 
+    async function descargarAviso(silencioso) {
+        const supabase = obtenerCliente();
+        if (!supabase) return null;
+
+        const numeroPeticion = ++peticionAvisoActual;
+
+        try {
+            const respuesta = await conTiempoLimite(
+                supabase
+                    .from(TABLA_AVISOS)
+                    .select('texto,activo,actualizado_en,actualizado_por')
+                    .limit(1),
+                TIEMPO_MAXIMO_LECTURA,
+                'No se pudo conectar con el servidor de avisos.'
+            );
+
+            if (respuesta.error) throw respuesta.error;
+            if (numeroPeticion !== peticionAvisoActual) return null;
+
+            falloAviso = '';
+
+            const aviso = respuesta.data && respuesta.data.length
+                ? filaAAviso(respuesta.data[0])
+                : null;
+
+            if (aviso) guardarCacheAviso(aviso);
+
+            emitirAviso(aviso, 'nube');
+            return aviso;
+        } catch (error) {
+            if (numeroPeticion !== peticionAvisoActual) return null;
+
+            // Los avisos no definen el estado de conexión del tablero
+            // (eso lo controlan los horarios). Con la caché basta.
+            falloAviso = String(error && error.message ? error.message : error);
+            console.warn('WebLiga: no se pudo actualizar el aviso. ' + falloAviso);
+
+            const cache = leerCacheAviso();
+            if (!silencioso || cache) {
+                emitirAviso(cache, 'cache');
+            }
+
+            return null;
+        }
+    }
+
+    async function obtenerAviso() {
+        return await descargarAviso(true);
+    }
+
+    function problemaAviso() {
+        return falloAviso;
+    }
+
     function suscribir() {
         const supabase = obtenerCliente();
         if (!supabase || canal) return;
@@ -285,11 +396,26 @@
                     }, 200);
                 }
             )
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: TABLA_AVISOS },
+                function () {
+                    if (temporizadorAviso !== null) {
+                        clearTimeout(temporizadorAviso);
+                    }
+
+                    temporizadorAviso = setTimeout(function () {
+                        temporizadorAviso = null;
+                        descargarAviso(true);
+                    }, 200);
+                }
+            )
             .subscribe(function (estado) {
                 if (estado === 'SUBSCRIBED') {
                     // Tener el canal Realtime abierto no garantiza que los datos
                     // se hayan podido descargar. Verificamos con una lectura.
                     descargarOverrides(true);
+                    descargarAviso(true);
                     return;
                 }
 
@@ -297,6 +423,7 @@
                     // Realtime puede fallar (por ejemplo, en una red restrictiva).
                     // Probamos la descarga normal; si funciona, seguimos online.
                     descargarOverrides(true);
+                    descargarAviso(true);
                 }
             });
     }
@@ -307,6 +434,7 @@
 
     function alVolverOnline() {
         descargarOverrides(true);
+        descargarAviso(true);
     }
 
     function alPerderConexion() {
@@ -316,6 +444,7 @@
     function alCambiarVisibilidad() {
         if (global.document.visibilityState === 'visible') {
             descargarOverrides(true);
+            descargarAviso(true);
         }
     }
 
@@ -332,6 +461,7 @@
             }
 
             descargarOverrides(true);
+            descargarAviso(true);
         }, INTERVALO_RESPALDO);
 
         global.addEventListener('online', alVolverOnline);
@@ -359,6 +489,7 @@
 
         if (opciones.alCambiar) alCambiar = opciones.alCambiar;
         if (opciones.alEstado) alEstado = opciones.alEstado;
+        if (opciones.alAviso) alAviso = opciones.alAviso;
 
         if (!estaConfigurado()) {
             emitirEstado('sin-configurar');
@@ -374,6 +505,11 @@
             emitirCambio(cache.overrides, 'cache');
         }
 
+        const cacheAviso = leerCacheAviso();
+        if (cacheAviso) {
+            emitirAviso(cacheAviso, 'cache');
+        }
+
         emitirEstado('sincronizando');
 
         // Nos suscribimos antes de la primera descarga para no perder ningún
@@ -385,6 +521,7 @@
         }
 
         await descargarOverrides(false);
+        await descargarAviso(true);
         iniciarRespaldo();
 
         return { configurado: true };
@@ -396,6 +533,11 @@
         if (temporizadorRefresco !== null) {
             clearTimeout(temporizadorRefresco);
             temporizadorRefresco = null;
+        }
+
+        if (temporizadorAviso !== null) {
+            clearTimeout(temporizadorAviso);
+            temporizadorAviso = null;
         }
 
         if (canal) {
@@ -533,6 +675,40 @@
     }
 
     /* ------------------------------------------------------------------ */
+    /* Avisos: escritura (solo administrador)                              */
+    /* ------------------------------------------------------------------ */
+
+    async function guardarAviso(cambios, email) {
+        const supabase = obtenerCliente();
+        if (!supabase) throw new Error('Falta configurar Supabase (supabase-config.js).');
+
+        const texto = String(cambios && cambios.texto ? cambios.texto : '').trim();
+
+        if (cambios && cambios.activo && !texto) {
+            throw new Error('Escribí un texto para el aviso o apagalo antes de guardar.');
+        }
+
+        const respuesta = await conTiempoLimite(
+            supabase
+                .from(TABLA_AVISOS)
+                .upsert({
+                    id: 1,
+                    texto: texto,
+                    activo: !!cambios && !!cambios.activo,
+                    actualizado_por: email || null,
+                    actualizado_en: new Date().toISOString()
+                }, { onConflict: 'id' }),
+            TIEMPO_MAXIMO_ESCRITURA,
+            'El servidor tardó demasiado en guardar el aviso.'
+        );
+
+        if (respuesta.error) throw respuesta.error;
+
+        await descargarAviso(true);
+        return true;
+    }
+
+    /* ------------------------------------------------------------------ */
     /* API pública                                                        */
     /* ------------------------------------------------------------------ */
 
@@ -544,6 +720,10 @@
         detener: detener,
         descargarOverrides: descargarOverrides,
         leerCache: leerCache,
+        leerCacheAviso: leerCacheAviso,
+        obtenerAviso: obtenerAviso,
+        problemaAviso: problemaAviso,
+        guardarAviso: guardarAviso,
         obtenerEstado: function () { return estadoActual; },
         obtenerUltimaSync: function () { return ultimaSync; },
         iniciarSesion: iniciarSesion,

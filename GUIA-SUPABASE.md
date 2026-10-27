@@ -68,6 +68,9 @@ Tiempo estimado de puesta en marcha: **20 a 30 minutos**, una sola vez.
    - No hace falta que el usuario exista todavía: lo creás en el paso 3.
 5. Tocá **Run** (o `Ctrl + Enter`). Tiene que terminar sin errores.
 6. Verificá en **Table Editor** que aparezca la tabla `horarios`, vacía.
+7. Repetí lo mismo con el archivo `supabase/avisos.sql` (reemplazando las
+   **3 apariciones de `ADMIN_EMAIL`** por el mismo correo) para habilitar los
+   avisos del tablero. Verificá que aparezca la tabla `avisos`.
 
 Qué hace ese SQL:
 
@@ -76,6 +79,11 @@ Qué hace ese SQL:
   administrador puede escribir.
 - Agrega un trigger que actualiza la fecha de modificación automáticamente.
 - Suma la tabla a **Realtime** para que los cambios se avisen al instante.
+
+El `avisos.sql` crea la tabla `avisos` (una sola fila) para el aviso de
+notificaciones importantes que se escribe desde el panel y aparece en el
+tablero. Si no lo ejecutás, el resto sigue funcionando; solo se muestra un
+mensaje avisando que falta ese paso.
 
 > Si más adelante cambiás el correo del administrador, volvé a ejecutar el mismo
 > SQL con el correo nuevo. Las políticas se recrean sin borrar los datos.
@@ -200,6 +208,30 @@ El QR apunta siempre a la dirección de `urlPublica`.
 
 **Sugerencia:** imprimí dos copias (mesa de inscripción y entrada) y probá
 escanearlas con un celular antes del evento.
+
+---
+
+## Turnero de la LNR y avisos importantes
+
+**Turnero**
+
+- En el tablero hay un botón **📒 Turnero** que abre `turnero.html`.
+- Esa página muestra dentro de la web el turnero de la Liga Nacional de
+  Robótica (`https://lnr-argentina.com.ar/turnero/85`), con el mismo tema
+  claro/oscuro del tablero.
+- Si el sitio externo muestra algo lento, hay un botón **Abrir en pestaña
+  nueva ↗** y un enlace directo al pie de la página.
+
+**Aviso**
+
+- En `admin.html` está la tarjeta **Aviso para el tablero**.
+- Escribís el texto, marcás **Mostrar el aviso en el tablero** y tocás
+  **Guardar aviso**.
+- El aviso aparece al momento en el tablero (TV y celulares) y queda guardado:
+  si alguien recarga o se corta internet, vuelve a aparecer con la última
+  copia guardada.
+- Para sacarlo, desmarcá **Mostrar el aviso** y tocá **Guardar aviso**
+  (el texto queda guardado para la próxima vez).
 
 ---
 

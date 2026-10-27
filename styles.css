@@ -177,6 +177,46 @@ html, body {
     border-color: var(--neon-cyan);
 }
 
+/* Enlace al turnero de la liga, con el mismo look que los botones */
+.header-link {
+    display: inline-block;
+    text-decoration: none;
+    margin-right: 0.6vw;
+}
+
+/* Aviso para notificaciones importantes.
+   En TV/vista fija flota bajo el encabezado para cubrir el tablero
+   sin desarmar la grilla; en celulares pasa a ser un elemento normal. */
+.aviso-banner {
+    position: fixed;
+    top: calc(8vh + 2vh);
+    left: 1.5vw;
+    right: 1.5vw;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    gap: 1vw;
+    padding: 1.1vh 1.5vw;
+    background: var(--bg-secondary);
+    border: 2px solid var(--neon-cyan);
+    border-radius: 8px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+    font-family: 'Exo 2', sans-serif;
+    font-size: 2.1vh;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.aviso-icono {
+    font-size: 2.5vh;
+    flex-shrink: 0;
+}
+
+.aviso-texto {
+    flex: 1;
+    line-height: 1.35;
+}
+
 .clock-label {
     font-size: 1.8vh;
     color: var(--neon-green);
@@ -1132,6 +1172,27 @@ html, body {
         font-size: 13px;
         padding: 7px 10px;
         min-height: 36px;
+    }
+
+    .header-link {
+        font-size: 13px;
+        padding: 7px 10px;
+        min-height: 36px;
+        margin-right: 8px;
+    }
+
+    /* ---------- Aviso para notificaciones ---------- */
+    .aviso-banner {
+        position: static;
+        padding: 10px 12px;
+        font-size: 15px;
+        gap: 10px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+    }
+
+    .aviso-icono {
+        font-size: 18px;
     }
 
     .time-debug-input.active {

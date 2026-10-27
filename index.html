@@ -14,6 +14,7 @@
         <!-- Header Top -->
         <header class="header-top">
             <div class="header-left">
+                <a id="turneroLink" class="theme-toggle header-link" href="turnero.html" title="Turnero de la Liga Nacional de Robótica">TURNERO</a>
                 <button id="themeToggle" class="theme-toggle" title="Cambiar tema">🌙 Modo Oscuro</button>
             </div>
             <div class="event-title">
@@ -25,6 +26,13 @@
                 <input type="time" id="timeDebugInput" class="time-debug-input" step="60">
             </div>
         </header>
+
+        <!-- Aviso para notificaciones importantes (se edita desde el panel admin).
+             En TV flota sobre el tablero; en celulares forma parte de la lista. -->
+        <div id="avisoBanner" class="aviso-banner" role="status" hidden>
+            <span class="aviso-icono">📣</span>
+            <span class="aviso-texto"></span>
+        </div>
 
         <!-- Zona Superior Prominente "AHORA MISMO" -->
         <section class="now-section">

@@ -21,6 +21,10 @@ let eventosModificados = {};
 // cronograma cuando el polling trae exactamente los mismos datos.
 let ultimaFirmaOverrides = null;
 
+// Aviso para notificaciones importantes. Se escribe desde el panel admin,
+// se guarda en Supabase y aparece en todos los dispositivos.
+let ultimaFirmaAviso = null;
+
 // Inicializar la aplicación cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', function () {
     inicializarTema();
@@ -31,6 +35,14 @@ document.addEventListener('DOMContentLoaded', function () {
         const cache = HorariosSync.leerCache();
         if (cache && cache.overrides) {
             eventosModificados = cache.overrides;
+        }
+    }
+
+    // Idem para el aviso: mostrar el último conocido sin esperar la red.
+    if (window.HorariosSync && typeof HorariosSync.leerCacheAviso === 'function') {
+        const cacheAviso = HorariosSync.leerCacheAviso();
+        if (cacheAviso) {
+            aplicarAviso(cacheAviso.activo && cacheAviso.texto ? cacheAviso : null);
         }
     }
 
@@ -267,10 +279,53 @@ function inicializarSincronizacion() {
             ultimaFirmaOverrides = firma;
             refrescarVista();
         },
+        alAviso: function (aviso) {
+            aplicarAviso(aviso);
+        },
         alEstado: function (estado) {
             actualizarIndicadorSync(estado);
         }
     });
+}
+
+/**
+ * Muestra u oculta el aviso para notificaciones importantes.
+ * El aviso se edita desde admin.html y llega por Supabase (Realtime + caché).
+ */
+function aplicarAviso(aviso) {
+    const banner = document.getElementById('avisoBanner');
+    if (!banner) return;
+
+    const texto = banner.querySelector('.aviso-texto');
+    const firma = aviso && aviso.texto ? String(aviso.texto) : '';
+
+    if (firma === ultimaFirmaAviso) return;
+    ultimaFirmaAviso = firma;
+
+    if (!aviso) {
+        banner.hidden = true;
+        banner.title = '';
+        return;
+    }
+
+    if (texto) texto.textContent = aviso.texto;
+
+    let marca = 'Aviso para todos los participantes';
+    if (aviso.actualizadoEn) {
+        try {
+            marca += ' · actualizado ' + new Date(aviso.actualizadoEn).toLocaleString('es-AR', {
+                day: '2-digit',
+                month: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch (e) {
+            // Fecha inválida: solo el texto genérico
+        }
+    }
+
+    banner.hidden = false;
+    banner.title = marca;
 }
 
 function firmaOverrides(overrides) {
