@@ -574,10 +574,8 @@ html, body {
     max-width: 100%;
     max-height: 100%;
     filter: none;
-    transform-origin: 50% 50%;
-    transform: scale(1);
-    transition: transform 0.25s ease-out;
-    will-change: transform;
+    /* El zoom se hace cambiando el viewBox del SVG (ver script.js), no con
+       transform: escalar por CSS rasteriza el plano y lo deja borroso. */
 }
 
 /* Pista de zoom al pasar el mouse */
