@@ -310,12 +310,21 @@ function refrescarVista() {
 /* ------------------------------------------------------------------ */
 
 /**
- * Zoom del mapa al pasar el mouse.
- * - Al entrar al mapa se aplica un zoom pequeño (15%).
- * - La rueda del mouse regula el zoom entre 1x y 3x.
- * - Mientras hay zoom, mover el mouse desplaza el mapa: la zona que se
- *   apunta queda siempre debajo del cursor, así se puede recorrer todo el plano.
- * - Al salir del mapa vuelve al tamaño original.
+ * Zoom del mapa.
+ *
+ * Mouse (punteros finos):
+ * - Al entrar se aplica un zoom pequeño (15%) centrado en el cursor.
+ * - La rueda regula el nivel entre 1x y 3x.
+ * - Al mover el mouse la zona apuntada queda debajo del cursor.
+ * - Al salir vuelve al tamaño original.
+ *
+ * Touch (celulares y tablets):
+ * - Dos dedos: pellizcar para ampliar (1x–3x) y mover el punto medio para
+ *   desplazar el plano al mismo tiempo.
+ * - Un dedo con zoom activo: arrastrar para recorrer el plano.
+ * - Sin zoom, el deslizamiento vertical sigue scrolleando la página.
+ * - El botón "Ver todo" restablece la vista completa.
+ *
  * Funciona igual en modo claro y oscuro.
  */
 function inicializarZoomMapa() {
@@ -323,72 +332,138 @@ function inicializarZoomMapa() {
     const svg = contenedor && contenedor.querySelector('svg');
     if (!contenedor || !svg) return;
 
+    const botonReset = contenedor.querySelector('.map-zoom-reset');
+
     const ESCALA_HOVER = 1.15; // pequeño zoom inicial
     const ESCALA_MIN = 1;
     const ESCALA_MAX = 3;
 
+    // Estado de la transformación (translate relativo al centro + escala)
     let escala = 1;
+    let tx = 0;
+    let ty = 0;
+
+    // Seguimiento del mouse
     let framePendiente = null;
-    let ultimoX = null;
-    let ultimoY = null;
+    let ultimoMouse = null;
+    let ultimoToque = -10000;
 
-    // Coloca el centro de zoom en la posición del cursor dentro del mapa
-    const fijarOrigen = (clientX, clientY) => {
-        const rect = contenedor.getBoundingClientRect();
-        if (rect.width <= 0 || rect.height <= 0) return;
+    // Estado de los gestos táctiles
+    let toques = [];
+    let modoTouch = null; // 'pan' | 'pinch' | null
+    let pinchInicial = null;
+    let panInicial = null;
 
-        const x = Math.min(100, Math.max(0, ((clientX - rect.left) / rect.width) * 100));
-        const y = Math.min(100, Math.max(0, ((clientY - rect.top) / rect.height) * 100));
-
-        svg.style.transformOrigin = `${x}% ${y}%`;
+    const geometria = () => {
+        const r = contenedor.getBoundingClientRect();
+        return {
+            ancho: r.width,
+            alto: r.height,
+            cx: r.left + r.width / 2,
+            cy: r.top + r.height / 2
+        };
     };
 
-    const aplicarZoom = (nuevaEscala, clientX, clientY) => {
-        escala = Math.min(ESCALA_MAX, Math.max(ESCALA_MIN, nuevaEscala));
+    // Coordenadas del puntero relativas al centro del mapa
+    const relativo = (clientX, clientY) => {
+        const g = geometria();
+        return { x: clientX - g.cx, y: clientY - g.cy };
+    };
 
-        if (typeof clientX === 'number' && typeof clientY === 'number') {
-            fijarOrigen(clientX, clientY);
+    // Evita que el plano se aleje y deje huecos vacíos
+    const limitar = () => {
+        const g = geometria();
+        const maxX = Math.max(0, (escala - 1) * g.ancho / 2);
+        const maxY = Math.max(0, (escala - 1) * g.alto / 2);
+
+        tx = Math.min(maxX, Math.max(-maxX, tx));
+        ty = Math.min(maxY, Math.max(-maxY, ty));
+    };
+
+    const pintar = (animar) => {
+        svg.style.transition = animar ? 'transform 0.25s ease-out' : 'none';
+        svg.style.transformOrigin = '50% 50%';
+        svg.style.transform = `translate3d(${tx}px, ${ty}px, 0) scale(${escala})`;
+        contenedor.classList.toggle('zoomed', escala > 1.001);
+    };
+
+    // Cambia la escala manteniendo fijo el punto ancla (cursor o punto medio)
+    const fijarEscala = (nuevaEscala, ancla, animar) => {
+        const s0 = escala;
+        const s1 = Math.min(ESCALA_MAX, Math.max(ESCALA_MIN, nuevaEscala));
+
+        if (ancla && s0 > 0) {
+            const factor = s1 / s0;
+            tx = ancla.x - (ancla.x - tx) * factor;
+            ty = ancla.y - (ancla.y - ty) * factor;
         }
 
-        svg.style.transform = `scale(${escala})`;
+        escala = s1;
+
+        if (escala <= 1) {
+            tx = 0;
+            ty = 0;
+        }
+
+        limitar();
+        pintar(animar);
     };
 
-    // Mientras el mapa está ampliado, seguir al cursor para poder recorrerlo
-    const programarSeguimiento = (clientX, clientY) => {
-        ultimoX = clientX;
-        ultimoY = clientY;
+    const reiniciar = (animar) => {
+        escala = 1;
+        tx = 0;
+        ty = 0;
+        modoTouch = null;
+        pinchInicial = null;
+        panInicial = null;
+        pintar(animar);
+    };
+
+    /* ---------------- Mouse / rueda ---------------- */
+
+    // Coloca el plano para que la zona apuntada quede bajo el cursor
+    const seguirCursor = (clientX, clientY) => {
+        ultimoMouse = relativo(clientX, clientY);
 
         if (framePendiente !== null) return;
 
         framePendiente = requestAnimationFrame(function () {
             framePendiente = null;
 
-            if (escala > 1 && ultimoX !== null && ultimoY !== null) {
-                fijarOrigen(ultimoX, ultimoY);
-            }
+            if (escala <= 1 || !ultimoMouse) return;
+
+            tx = ultimoMouse.x * (1 - escala);
+            ty = ultimoMouse.y * (1 - escala);
+            limitar();
+            pintar(false);
         });
     };
 
     contenedor.addEventListener('mouseenter', function (e) {
-        aplicarZoom(Math.max(escala, ESCALA_HOVER), e.clientX, e.clientY);
+        if (performance.now() - ultimoToque < 800) return;
+        if (escala > 1) return;
+
+        fijarEscala(ESCALA_HOVER, relativo(e.clientX, e.clientY), true);
     });
 
     contenedor.addEventListener('mousemove', function (e) {
+        if (performance.now() - ultimoToque < 800) return;
         if (escala <= 1) return;
-        programarSeguimiento(e.clientX, e.clientY);
+
+        seguirCursor(e.clientX, e.clientY);
     });
 
     contenedor.addEventListener('mouseleave', function () {
+        if (performance.now() - ultimoToque < 800) return;
+
         if (framePendiente !== null) {
             cancelAnimationFrame(framePendiente);
             framePendiente = null;
         }
 
-        escala = 1;
-        ultimoX = null;
-        ultimoY = null;
-        svg.style.transformOrigin = '50% 50%';
-        svg.style.transform = 'scale(1)';
+        ultimoMouse = null;
+
+        if (escala > 1) reiniciar(true);
     });
 
     contenedor.addEventListener('wheel', function (e) {
@@ -398,8 +473,147 @@ function inicializarZoomMapa() {
         const delta = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
         const factor = Math.exp(-delta * 0.0015);
 
-        aplicarZoom(escala * factor, e.clientX, e.clientY);
+        fijarEscala(escala * factor, relativo(e.clientX, e.clientY), false);
     }, { passive: false });
+
+    /* ---------------- Touch ---------------- */
+
+    const leerToques = (lista) => Array.from(lista).map(t => ({
+        id: t.identifier,
+        x: t.clientX,
+        y: t.clientY
+    }));
+
+    const iniciarPinch = () => {
+        if (toques.length < 2) return;
+
+        const [a, b] = toques;
+        pinchInicial = {
+            distancia: Math.hypot(b.x - a.x, b.y - a.y) || 1,
+            medio: relativo((a.x + b.x) / 2, (a.y + b.y) / 2),
+            escala: escala,
+            tx: tx,
+            ty: ty
+        };
+        modoTouch = 'pinch';
+        panInicial = null;
+    };
+
+    // Los toques sobre el botón "Ver todo" no deben iniciar gestos del mapa
+    const esBotonReset = (e) => botonReset && e.target instanceof Element && botonReset.contains(e.target);
+
+    contenedor.addEventListener('touchstart', function (e) {
+        ultimoToque = performance.now();
+        toques = leerToques(e.touches);
+
+        if (esBotonReset(e)) {
+            modoTouch = null;
+            pinchInicial = null;
+            panInicial = null;
+            return;
+        }
+
+        if (toques.length >= 2) {
+            // El pellizco siempre lo maneja el mapa, nunca la página
+            e.preventDefault();
+            iniciarPinch();
+            return;
+        }
+
+        if (toques.length === 1) {
+            if (escala > 1) {
+                // Con zoom activo, un dedo arrastra el plano
+                e.preventDefault();
+                modoTouch = 'pan';
+                panInicial = { x: toques[0].x, y: toques[0].y, tx: tx, ty: ty };
+                pintar(false);
+            } else {
+                // Sin zoom, el gesto queda libre para scrollear la página
+                modoTouch = null;
+                panInicial = null;
+            }
+        }
+    }, { passive: false });
+
+    contenedor.addEventListener('touchmove', function (e) {
+        ultimoToque = performance.now();
+
+        if (e.touches.length >= 2 && pinchInicial) {
+            e.preventDefault();
+
+            const [a, b] = Array.from(e.touches);
+            const distancia = Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
+            const medio = relativo((a.clientX + b.clientX) / 2, (a.clientY + b.clientY) / 2);
+
+            const objetivo = pinchInicial.escala * (distancia / pinchInicial.distancia);
+            const nuevaEscala = Math.min(ESCALA_MAX, Math.max(ESCALA_MIN, objetivo));
+            const factor = nuevaEscala / pinchInicial.escala;
+
+            escala = nuevaEscala;
+
+            // Mantiene el punto de partida bajo el punto medio actual:
+            // pellizcar amplía y mover los dedos desplaza al mismo tiempo
+            tx = medio.x + (pinchInicial.tx - pinchInicial.medio.x) * factor;
+            ty = medio.y + (pinchInicial.ty - pinchInicial.medio.y) * factor;
+
+            if (escala <= 1) {
+                tx = 0;
+                ty = 0;
+            }
+
+            limitar();
+            pintar(false);
+            return;
+        }
+
+        if (modoTouch === 'pan' && panInicial && e.touches.length === 1 && escala > 1) {
+            e.preventDefault();
+
+            const t = e.touches[0];
+            tx = panInicial.tx + (t.clientX - panInicial.x);
+            ty = panInicial.ty + (t.clientY - panInicial.y);
+            limitar();
+            pintar(false);
+        }
+    }, { passive: false });
+
+    contenedor.addEventListener('touchend', function (e) {
+        ultimoToque = performance.now();
+        toques = leerToques(e.touches);
+
+        // Si queda un dedo apoyado, continúa como arrastre
+        if (toques.length === 1 && escala > 1) {
+            pinchInicial = null;
+            modoTouch = 'pan';
+            panInicial = { x: toques[0].x, y: toques[0].y, tx: tx, ty: ty };
+            return;
+        }
+
+        if (toques.length === 0) {
+            pinchInicial = null;
+            modoTouch = null;
+            panInicial = null;
+        }
+    });
+
+    contenedor.addEventListener('touchcancel', function () {
+        pinchInicial = null;
+        modoTouch = null;
+        panInicial = null;
+    });
+
+    // iOS Safari: evita el zoom nativo de la página sobre el mapa
+    contenedor.addEventListener('gesturestart', function (e) {
+        e.preventDefault();
+    }, { passive: false });
+
+    if (botonReset) {
+        botonReset.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            reiniciar(true);
+        });
+    }
 }
 
 function limpiarZonasActivas() {
