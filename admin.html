@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es" class="admin-root">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Administración de horarios · WebLiga</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="admin.css">
+    <script>
+        try {
+            document.documentElement.setAttribute(
+                'data-theme',
+                localStorage.getItem('webliga-theme') === 'dark' ? 'dark' : 'light'
+            );
+        } catch (e) {}
+    </script>
+</head>
+<body class="admin-page">
+    <div class="admin-shell">
+        <header class="admin-header">
+            <div class="admin-brand">
+                <span class="admin-kicker">WEBLIGA 2026</span>
+                <h1>Administración de horarios</h1>
+                <p>Los cambios se publican al instante en el tablero y en los celulares.</p>
+            </div>
+            <div class="admin-header-actions">
+                <a class="admin-button ghost" href="index.html" target="_blank" rel="noopener">Ver tablero</a>
+                <a class="admin-button ghost" href="qr.html" target="_blank" rel="noopener">Ver QR</a>
+                <button type="button" class="admin-button ghost" id="themeToggle">🌙 Modo Oscuro</button>
+                <button type="button" class="admin-button ghost" id="logoutBtn" hidden>Salir</button>
+            </div>
+        </header>
+
+        <div class="admin-banner admin-banner-error" id="setupNotice" hidden>
+            <strong>Falta configurar Supabase.</strong>
+            <p>
+                Completá <code>supabase-config.js</code> y ejecutá el SQL de
+                <code>supabase/schema.sql</code>. La guía paso a paso está en
+                <code>GUIA-SUPABASE.md</code>.
+            </p>
+        </div>
+
+        <section class="admin-card admin-login" id="loginCard" hidden>
+            <div class="admin-login-info">
+                <h2>Ingresar como administrador</h2>
+                <p>
+                    Solo la cuenta de administrador puede modificar horarios.
+                    Los participantes no necesitan iniciar sesión.
+                </p>
+            </div>
+            <form id="loginForm" class="admin-form" novalidate>
+                <label for="loginEmail">Correo electrónico</label>
+                <input type="email" id="loginEmail" autocomplete="username" placeholder="admin@escuela.edu" required>
+
+                <label for="loginPassword">Contraseña</label>
+                <input type="password" id="loginPassword" autocomplete="current-password" required>
+
+                <button type="submit" class="admin-button primary" id="loginBtn">Ingresar</button>
+                <p class="admin-error" id="loginError" hidden></p>
+            </form>
+        </section>
+
+        <main id="adminPanel" class="admin-panel" hidden>
+            <div class="admin-toolbar">
+                <div class="admin-toolbar-info">
+                    <span class="admin-session">Administrador: <strong id="adminEmail">—</strong></span>
+                    <span class="sync-status admin-sync" id="adminSyncStatus" data-estado="sincronizando">
+                        <span class="sync-dot"></span>
+                        <span class="sync-label">SINCRONIZANDO</span>
+                    </span>
+                </div>
+                <div class="admin-toolbar-actions">
+                    <button type="button" class="admin-button ghost" id="refreshBtn">Actualizar</button>
+                    <button type="button" class="admin-button danger" id="resetAllBtn">Restablecer todo</button>
+                </div>
+            </div>
+
+            <div class="admin-banner" id="pendingBanner" hidden>
+                <span>Hay cambios nuevos desde otro dispositivo. Guardá o descartá lo tuyo para verlos.</span>
+                <button type="button" class="admin-button ghost" id="discardBtn">Descartar mis cambios y recargar</button>
+            </div>
+
+            <section class="admin-card">
+                <div class="admin-card-header">
+                    <h2>Horarios</h2>
+                    <p>Guardá cada fila. El tablero se actualiza solo, sin recargar la página.</p>
+                </div>
+                <div id="adminRows" class="admin-rows"></div>
+            </section>
+
+            <section class="admin-card admin-qr-card">
+                <div class="admin-card-header">
+                    <h2>QR para los participantes</h2>
+                    <p>Mostrá esta pantalla o imprimí el QR. Apunta siempre al tablero público.</p>
+                </div>
+                <div class="admin-qr-content">
+                    <div id="qrPreview" class="admin-qr-preview" aria-label="Código QR del tablero"></div>
+                    <div class="admin-qr-info">
+                        <p class="admin-qr-url" id="qrUrl">—</p>
+                        <div class="admin-actions">
+                            <a class="admin-button primary" href="qr.html" target="_blank" rel="noopener">Abrir pantalla completa</a>
+                            <button type="button" class="admin-button ghost" id="downloadQrBtn">Descargar SVG</button>
+                            <a class="admin-button ghost" href="qr.html?print=1" target="_blank" rel="noopener">Imprimir</a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="admin-card">
+                <div class="admin-card-header">
+                    <h2>Respaldo</h2>
+                    <p>Descargá una copia de los cambios guardados en la nube.</p>
+                </div>
+                <div class="admin-actions">
+                    <button type="button" class="admin-button ghost" id="backupBtn">Descargar copia (JSON)</button>
+                </div>
+                <p class="admin-muted" id="backupInfo"></p>
+            </section>
+        </main>
+
+        <footer class="admin-footer">
+            <span>WebLiga · Administración</span>
+            <span id="lastSyncLabel"></span>
+        </footer>
+    </div>
+
+    <div class="admin-toast" id="toast" hidden role="status" aria-live="polite"></div>
+
+    <script src="lib/supabase.js"></script>
+    <script src="supabase-config.js"></script>
+    <script src="datos.js"></script>
+    <script src="lib/qrcode-generator.js"></script>
+    <script src="horarios-sync.js"></script>
+    <script src="qr-comun.js"></script>
+    <script src="admin.js"></script>
+</body>
+</html>

@@ -480,9 +480,61 @@ html, body {
 }
 
 .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1vw;
     padding: 1vh 1.5vw;
     background: linear-gradient(90deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%);
     border-bottom: 2px solid var(--neon-cyan);
+}
+
+/* Indicador de sincronización de horarios */
+.sync-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4vw;
+    flex-shrink: 0;
+    font-size: 1.2vh;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.sync-status[hidden] {
+    display: none;
+}
+
+.sync-dot {
+    width: 0.9vh;
+    height: 0.9vh;
+    min-width: 7px;
+    min-height: 7px;
+    border-radius: 50%;
+    background: var(--text-secondary);
+}
+
+.sync-status[data-estado="conectado"] .sync-dot {
+    background: var(--neon-green);
+    box-shadow: 0 0 6px var(--neon-green);
+}
+
+.sync-status[data-estado="conectado"] .sync-label {
+    color: var(--neon-green);
+}
+
+.sync-status[data-estado="sincronizando"] .sync-dot {
+    background: var(--neon-orange);
+    animation: neonBlink 1.2s ease-in-out infinite;
+}
+
+.sync-status[data-estado="sin-conexion"] .sync-dot {
+    background: var(--neon-orange);
+}
+
+.sync-status[data-estado="sin-conexion"] .sync-label {
+    color: var(--neon-orange);
 }
 
 .section-header h2 {
@@ -862,30 +914,6 @@ html, body {
     flex-shrink: 0;
 }
 
-/* Botón de edición: oculto en TV, visible en pantallas táctiles */
-.schedule-edit {
-    display: none;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    background: var(--bg-secondary);
-    color: var(--text-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    font-size: 16px;
-    line-height: 1;
-    cursor: pointer;
-    flex-shrink: 0;
-    -webkit-tap-highlight-color: transparent;
-}
-
-.schedule-edit:active {
-    color: var(--neon-cyan);
-    border-color: var(--neon-cyan);
-}
-
 /* Footer Bottom */
 .footer-bottom {
     grid-row: 4;
@@ -1254,6 +1282,17 @@ html, body {
         letter-spacing: 1px;
     }
 
+    .sync-status {
+        gap: 5px;
+        font-size: 10px;
+        letter-spacing: 0.5px;
+    }
+
+    .sync-dot {
+        width: 7px;
+        height: 7px;
+    }
+
     /* ---------- Mapa ---------- */
     .map-section {
         overflow: hidden;
@@ -1339,13 +1378,6 @@ html, body {
         letter-spacing: 0.4px;
     }
 
-    .schedule-edit {
-        display: flex;
-        width: 36px;
-        height: 36px;
-        font-size: 17px;
-    }
-
     /* ---------- Footer / logos ---------- */
     .footer-bottom {
         overflow: visible;
@@ -1420,9 +1452,5 @@ html, body {
 
     .map-container.zoomed .map-touch-hint {
         opacity: 0;
-    }
-
-    .schedule-edit {
-        display: flex;
     }
 }

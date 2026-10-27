@@ -11,14 +11,28 @@ let debugHoraActiva = false;
 let debugHoraValor = null;
 let debugClicks = 0;
 
-// Modificaciones manuales de los eventos.
-// Son temporales: viven solo en memoria y se pierden al recargar la página.
+// Modificaciones de horarios.
+// Se cargan desde Supabase (o desde la última copia guardada) y se comparten
+// entre todos los dispositivos. Las ediciones se hacen en admin.html.
 // { [eventoId]: { horaInicio?: string, horaFin?: string, finalizado?: boolean } }
 let eventosModificados = {};
+
+// Firma del último conjunto de cambios aplicado. Evita volver a dibujar el
+// cronograma cuando el polling trae exactamente los mismos datos.
+let ultimaFirmaOverrides = null;
 
 // Inicializar la aplicación cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', function () {
     inicializarTema();
+
+    // Mostrar de entrada la última copia conocida (si existe) para que la TV
+    // no parpadee con los horarios por defecto mientras conecta.
+    if (window.HorariosSync && HorariosSync.estaConfigurado()) {
+        const cache = HorariosSync.leerCache();
+        if (cache && cache.overrides) {
+            eventosModificados = cache.overrides;
+        }
+    }
 
     // Renderizar cronograma inicial
     renderizarCronograma();
@@ -27,6 +41,7 @@ document.addEventListener('DOMContentLoaded', function () {
     inicializarDebugReloj();
     inicializarThemeToggle();
     inicializarZoomMapa();
+    inicializarSincronizacion();
 
     // Reloj en vivo
     actualizarReloj();
@@ -201,8 +216,6 @@ function renderizarCronograma() {
         const item = document.createElement('div');
         item.className = 'schedule-item';
         item.dataset.eventoId = evento.id;
-        item.style.cursor = 'pointer';
-        item.title = 'Doble clic para modificar horario o marcar finalizado';
 
         item.innerHTML = `
             <div class="schedule-time">
@@ -214,95 +227,107 @@ function renderizarCronograma() {
                 <div class="schedule-zone">${escapeHtml(evento.zona)}</div>
             </div>
             <div class="schedule-status"></div>
-            <button type="button" class="schedule-edit" title="Editar horario" aria-label="Editar horario de ${escapeHtml(evento.titulo)}">✎</button>
         `;
-
-        item.querySelector('.schedule-edit').addEventListener('click', function (e) {
-            e.stopPropagation();
-            modificarEvento(evento.id);
-        });
-
-        item.addEventListener('dblclick', function (e) {
-            e.stopPropagation();
-            modificarEvento(evento.id);
-        });
 
         scheduleList.appendChild(item);
     });
 }
 
-/**
- * Abre el editor rápido de un evento (temporal, hasta recargar).
- */
-function modificarEvento(eventoId) {
-    const evento = eventos.find(e => e.id === eventoId);
-    if (!evento) return;
-
-    const meta = obtenerEventoModificado(evento);
-    const marcaFinalizado = meta.finalizado ? '\n(Actualmente marcado como FINALIZADO)' : '';
-
-    const mensaje = [
-        `Evento: ${evento.titulo}${marcaFinalizado}`,
-        `Horario actual: ${meta.horaInicio} - ${meta.horaFin}`,
-        '',
-        '1. Cambiar hora de inicio',
-        '2. Cambiar hora de fin',
-        '3. Marcar como FINALIZADO ahora',
-        '4. Restaurar horario original',
-        '5. Cancelar',
-        '',
-        'Ingresá el número de opción:'
-    ].join('\n');
-
-    const opcion = prompt(mensaje);
-
-    if (opcion === '1') {
-        const nueva = prompt('Nueva hora de inicio (HH:MM):', meta.horaInicio);
-        if (!nueva) return;
-        if (!/^\d{1,2}:\d{2}$/.test(nueva)) {
-            alert('Formato inválido. Usá HH:MM (ejemplo: 12:30).');
-            return;
-        }
-        if (horaAMinutos(nueva) >= horaAMinutos(meta.horaFin)) {
-            alert('La hora de inicio debe ser anterior a la hora de fin.');
-            return;
-        }
-        eventosModificados[eventoId] = {
-            ...(eventosModificados[eventoId] || {}),
-            horaInicio: nueva
-        };
-        refrescarVista();
-    } else if (opcion === '2') {
-        const nueva = prompt('Nueva hora de fin (HH:MM):', meta.horaFin);
-        if (!nueva) return;
-        if (!/^\d{1,2}:\d{2}$/.test(nueva)) {
-            alert('Formato inválido. Usá HH:MM (ejemplo: 16:30).');
-            return;
-        }
-        if (horaAMinutos(nueva) <= horaAMinutos(meta.horaInicio)) {
-            alert('La hora de fin debe ser posterior a la hora de inicio.');
-            return;
-        }
-        eventosModificados[eventoId] = {
-            ...(eventosModificados[eventoId] || {}),
-            horaFin: nueva
-        };
-        refrescarVista();
-    } else if (opcion === '3') {
-        eventosModificados[eventoId] = {
-            ...(eventosModificados[eventoId] || {}),
-            finalizado: true
-        };
-        refrescarVista();
-    } else if (opcion === '4') {
-        delete eventosModificados[eventoId];
-        refrescarVista();
-    }
-}
-
 function refrescarVista() {
     renderizarCronograma();
     actualizarEstadoEventos();
+}
+
+/* ------------------------------------------------------------------ */
+/* Sincronización con Supabase                                        */
+/* ------------------------------------------------------------------ */
+
+function inicializarSincronizacion() {
+    if (!window.HorariosSync) return;
+
+    const badge = document.getElementById('syncStatus');
+
+    if (!HorariosSync.estaConfigurado()) {
+        if (badge) badge.hidden = true;
+        return;
+    }
+
+    if (badge) {
+        badge.hidden = false;
+        badge.dataset.estado = 'sincronizando';
+    }
+
+    HorariosSync.iniciar({
+        alCambiar: function (overrides) {
+            const firma = firmaOverrides(overrides);
+            eventosModificados = overrides || {};
+
+            if (firma === ultimaFirmaOverrides) return;
+
+            ultimaFirmaOverrides = firma;
+            refrescarVista();
+        },
+        alEstado: function (estado) {
+            actualizarIndicadorSync(estado);
+        }
+    });
+}
+
+function firmaOverrides(overrides) {
+    return Object.keys(overrides || {})
+        .sort()
+        .map(function (id) {
+            const dato = overrides[id] || {};
+            return id + ':' + dato.horaInicio + '|' + dato.horaFin + '|' + (dato.finalizado ? '1' : '0');
+        })
+        .join(';');
+}
+
+function actualizarIndicadorSync(estado) {
+    const badge = document.getElementById('syncStatus');
+    if (!badge) return;
+
+    const label = badge.querySelector('.sync-label');
+
+    if (estado === 'sin-configurar') {
+        badge.hidden = true;
+        return;
+    }
+
+    badge.hidden = false;
+    badge.dataset.estado = estado;
+
+    const formatearHora = function (fecha) {
+        if (!fecha) return '';
+        try {
+            return new Date(fecha).toLocaleTimeString('es-AR', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch (e) {
+            return '';
+        }
+    };
+
+    if (estado === 'conectado') {
+        const hora = formatearHora(HorariosSync.obtenerUltimaSync());
+        if (label) label.textContent = 'EN VIVO';
+        badge.title = 'Horarios sincronizados' + (hora ? ' · última actualización ' + hora : '');
+        return;
+    }
+
+    if (estado === 'sin-conexion') {
+        const cache = HorariosSync.leerCache();
+        const hora = cache ? formatearHora(cache.guardadoEn) : '';
+        if (label) label.textContent = 'SIN CONEXIÓN';
+        badge.title = 'Sin conexión. Mostrando la última copia guardada' +
+            (hora ? ' (' + hora + ')' : '') +
+            '. Se reintenta automáticamente.';
+        return;
+    }
+
+    if (label) label.textContent = 'SINCRONIZANDO';
+    badge.title = 'Conectando con el servidor de horarios…';
 }
 
 /* ------------------------------------------------------------------ */

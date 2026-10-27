@@ -5,8 +5,8 @@
  * IMPORTANTE:
  * - Cada categoría tiene su propia fila en el cronograma, aunque su horario
  *   se superponga con otras. Así se puede ver el estado de cada una por separado.
- * - Los horarios de abajo son orientativos. En la pantalla se pueden ajustar
- *   en vivo con doble clic sobre la fila (los cambios se pierden al recargar).
+ * - Estos son los horarios base. Los cambios en vivo se hacen desde admin.html
+ *   y se guardan en Supabase (los cambios pisan estos valores sin borrarlos).
  */
 
 const eventos = [

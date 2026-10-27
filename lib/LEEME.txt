@@ -1,0 +1,25 @@
+Bibliotecas incluidas (versiones fijas, sin CDN)
+=================================================
+
+Estos archivos se descargaron una sola vez y se sirven desde el mismo sitio
+para que el tablero y el QR no dependan de un CDN externo durante el evento.
+
+supabase.js
+-----------
+- Paquete: @supabase/supabase-js
+- Versión: 2.118.0
+- Archivo original: dist/umd/supabase.js
+- Origen: https://www.npmjs.com/package/@supabase/supabase-js
+- Licencia: MIT
+
+qrcode-generator.js
+-------------------
+- Paquete: qrcode-generator
+- Versión: 2.0.4
+- Archivo original: dist/qrcode.js
+- Origen: https://www.npmjs.com/package/qrcode-generator
+- Autor: Kazuhiko Arase
+- Licencia: MIT
+
+No editar estos archivos a mano. Para actualizar, descargar la versión nueva
+desde npm/jsDelivr y reemplazar el archivo manteniendo el mismo nombre.
