@@ -100,7 +100,28 @@
                 </div>
                 <div class="admin-form">
                     <label for="avisoTexto">Texto del aviso</label>
-                    <textarea id="avisoTexto" rows="2" maxlength="240" placeholder="Ej: Los turnos de la LNR ya están publicados en el turnero"></textarea>
+                    <div class="admin-plantillas">
+                        <span class="admin-plantillas-label">Mensajes rápidos:</span>
+                        <button type="button" class="admin-chip" data-plantilla="Retraso en [ACTIVIDAD]: arranca a las [HORA].">Retraso</button>
+                        <button type="button" class="admin-chip" data-plantilla="Último llamado para [ACTIVIDAD] en [LUGAR].">Último llamado</button>
+                        <button type="button" class="admin-chip" data-plantilla="Se necesita participante de [ACTIVIDAD] en [LUGAR].">Se necesita participante</button>
+                        <button type="button" class="admin-chip" data-plantilla="[ACTIVIDAD] comienza ahora en [LUGAR].">Ya empieza</button>
+                        <button type="button" class="admin-chip" data-plantilla="[ACTIVIDAD] se reprograma para las [HORA].">Se reprograma</button>
+                        <button type="button" class="admin-chip" data-plantilla="[ACTIVIDAD] finalizó. Pueden pasar a [LUGAR].">Finalizó</button>
+                    </div>
+                    <textarea id="avisoTexto" rows="2" maxlength="240" placeholder="Escribí el aviso o tocá un mensaje rápido"></textarea>
+
+                    <div class="admin-plantillas admin-plantillas-completar">
+                        <span class="admin-plantillas-label">Completar:</span>
+                        <select id="avisoActividadPick" class="admin-chip-select" title="Reemplaza [ACTIVIDAD] en el texto">
+                            <option value="">[ACTIVIDAD]…</option>
+                        </select>
+                        <select id="avisoLugarPick" class="admin-chip-select" title="Reemplaza [LUGAR] en el texto">
+                            <option value="">[LUGAR]…</option>
+                        </select>
+                        <button type="button" class="admin-chip" id="avisoHoraBtn" title="Reemplaza [HORA] por la hora actual">Usar hora actual</button>
+                        <button type="button" class="admin-chip" id="avisoLimpiarBtn" title="Vacía el texto">Limpiar</button>
+                    </div>
 
                     <label class="admin-check">
                         <input type="checkbox" id="avisoActivo">

@@ -120,6 +120,8 @@
         adminRows.addEventListener('input', marcarCambios);
         adminRows.addEventListener('change', marcarCambios);
         adminRows.addEventListener('click', manejarAccionFila);
+
+        configurarMensajesRapidos();
     }
 
     function mostrarErrorConfiguracion(mensaje, titulo) {
@@ -280,6 +282,108 @@
         } else {
             info.textContent = 'Todavía no hay aviso guardado.';
         }
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Mensajes rápidos para el aviso                                     */
+    /* ------------------------------------------------------------------ */
+
+    function configurarMensajesRapidos() {
+        document.querySelectorAll('.admin-chip[data-plantilla]').forEach(function (chip) {
+            chip.addEventListener('click', function () {
+                usarPlantilla(chip.dataset.plantilla);
+            });
+        });
+
+        document.getElementById('avisoActividadPick').addEventListener('change', function () {
+            if (!this.value) return;
+            reemplazarMarcador('[ACTIVIDAD]', this.value);
+            this.value = '';
+        });
+
+        document.getElementById('avisoLugarPick').addEventListener('change', function () {
+            if (!this.value) return;
+            reemplazarMarcador('[LUGAR]', this.value);
+            this.value = '';
+        });
+
+        document.getElementById('avisoHoraBtn').addEventListener('click', function () {
+            reemplazarMarcador('[HORA]', horaActual());
+        });
+
+        document.getElementById('avisoLimpiarBtn').addEventListener('click', function () {
+            const area = document.getElementById('avisoTexto');
+            area.value = '';
+            document.getElementById('avisoError').hidden = true;
+            area.focus();
+        });
+
+        poblarCompletadores();
+    }
+
+    function poblarCompletadores() {
+        const actividadPick = document.getElementById('avisoActividadPick');
+        const lugarPick = document.getElementById('avisoLugarPick');
+
+        const titulos = [];
+        const zonas = [];
+
+        if (typeof eventos !== 'undefined' && Array.isArray(eventos)) {
+            eventos.forEach(function (evento) {
+                if (!evento) return;
+
+                if (evento.titulo && titulos.indexOf(evento.titulo) === -1) {
+                    titulos.push(evento.titulo);
+                }
+
+                if (evento.zona && zonas.indexOf(evento.zona) === -1) {
+                    zonas.push(evento.zona);
+                }
+            });
+        }
+
+        titulos.sort().forEach(function (titulo) {
+            const opcion = document.createElement('option');
+            opcion.value = titulo;
+            opcion.textContent = titulo;
+            actividadPick.appendChild(opcion);
+        });
+
+        zonas.sort().forEach(function (zona) {
+            const opcion = document.createElement('option');
+            opcion.value = zona;
+            opcion.textContent = zona;
+            lugarPick.appendChild(opcion);
+        });
+    }
+
+    function usarPlantilla(texto) {
+        const area = document.getElementById('avisoTexto');
+
+        if (area.value.trim()) {
+            if (!window.confirm('¿Reemplazar el texto actual por el mensaje rápido?')) return;
+        }
+
+        area.value = texto;
+        document.getElementById('avisoError').hidden = true;
+        area.focus();
+    }
+
+    function reemplazarMarcador(marcador, valor) {
+        const area = document.getElementById('avisoTexto');
+
+        if (area.value.indexOf(marcador) === -1) {
+            mostrarToast('El texto no contiene ' + marcador + ' para completar.', true);
+            return;
+        }
+
+        area.value = area.value.replace(marcador, valor);
+    }
+
+    function horaActual() {
+        const ahora = new Date();
+        const dosDigitos = function (valor) { return String(valor).padStart(2, '0'); };
+        return dosDigitos(ahora.getHours()) + ':' + dosDigitos(ahora.getMinutes());
     }
 
     async function guardarAvisoClick() {

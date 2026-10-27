@@ -225,8 +225,15 @@ escanearlas con un celular antes del evento.
 **Aviso**
 
 - En `admin.html` está la tarjeta **Aviso para el tablero**.
-- Escribís el texto, marcás **Mostrar el aviso en el tablero** y tocás
-  **Guardar aviso**.
+- **Mensajes rápidos:** botones con avisos ya armados (Retraso, Último
+  llamado, Se necesita participante, Ya empieza, Se reprograma, Finalizó).
+  Al tocar uno, arma el texto con comodines:
+  - `[ACTIVIDAD]` y `[LUGAR]` se completan con los desplegables de abajo
+    (usan las actividades y zonas reales del cronograma).
+  - `[HORA]` se completa con **Usar hora actual**.
+  - Si ya había un texto escrito, pide confirmación antes de reemplazarlo.
+- Cuando el texto está listo, marcás **Mostrar el aviso en el tablero** y
+  tocás **Guardar aviso**.
 - El aviso aparece al momento en el tablero (TV y celulares) y queda guardado:
   si alguien recarga o se corta internet, vuelve a aparecer con la última
   copia guardada.

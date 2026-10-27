@@ -269,6 +269,66 @@ body.admin-page {
     cursor: pointer;
 }
 
+/* ---------- Mensajes rápidos del aviso ---------- */
+
+.admin-plantillas {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 2px;
+}
+
+.admin-plantillas-label {
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 600;
+    margin-right: 2px;
+}
+
+.admin-chip {
+    padding: 5px 10px;
+    min-height: 30px;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.admin-chip:hover {
+    border-color: var(--neon-cyan);
+    background: var(--bg-secondary);
+}
+
+.admin-plantillas-completar {
+    margin-top: 6px;
+}
+
+.admin-chip-select {
+    min-height: 30px;
+    max-width: 220px;
+    padding: 5px 6px;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.admin-chip-select:focus {
+    outline: 2px solid var(--neon-cyan);
+    outline-offset: 1px;
+}
+
 .admin-form .admin-button {
     margin-top: 12px;
     min-height: 46px;
