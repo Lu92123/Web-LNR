@@ -13,8 +13,8 @@
  * Guía paso a paso: GUIA-SUPABASE.md
  */
 window.WEBLIGA_CONFIG = {
-    supabaseUrl: '',
-    supabaseAnonKey: '',
+    supabaseUrl: 'https://nzefovqfzkabqhukhkj.supabase.co',
+    supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im56ZWZvdnFmemthYnFodWtoamtqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMwNjQzMDIsImV4cCI6MjEwODY0MDMwMn0.wmS0bEj-FTr4yRsY6T0t_CLa1JBHqNiJPK1T4dAEPO8',
 
     // Dirección que se codifica en el QR (la página pública del tablero).
     // Si usás otro dominio, cambiala.
