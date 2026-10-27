@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Inicializar interacciones
     inicializarDebugReloj();
     inicializarThemeToggle();
+    inicializarZoomMapa();
 
     // Reloj en vivo
     actualizarReloj();
@@ -289,6 +290,61 @@ function refrescarVista() {
 /* ------------------------------------------------------------------ */
 /* Mapa SVG                                                           */
 /* ------------------------------------------------------------------ */
+
+/**
+ * Zoom del mapa al pasar el mouse.
+ * - Al entrar al mapa se aplica un zoom pequeño (15%).
+ * - La rueda del mouse regula el zoom entre 1x y 3x, centrado en el cursor.
+ * - Al salir del mapa vuelve al tamaño original.
+ * Funciona igual en modo claro y oscuro.
+ */
+function inicializarZoomMapa() {
+    const contenedor = document.querySelector('.map-container');
+    const svg = contenedor && contenedor.querySelector('svg');
+    if (!contenedor || !svg) return;
+
+    const ESCALA_HOVER = 1.15; // pequeño zoom inicial
+    const ESCALA_MIN = 1;
+    const ESCALA_MAX = 3;
+
+    let escala = 1;
+
+    const aplicarZoom = (nuevaEscala, clientX, clientY) => {
+        escala = Math.min(ESCALA_MAX, Math.max(ESCALA_MIN, nuevaEscala));
+
+        // El zoom se centra en la posición del cursor
+        if (typeof clientX === 'number' && typeof clientY === 'number') {
+            const rect = contenedor.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+                const x = ((clientX - rect.left) / rect.width) * 100;
+                const y = ((clientY - rect.top) / rect.height) * 100;
+                svg.style.transformOrigin = `${x}% ${y}%`;
+            }
+        }
+
+        svg.style.transform = `scale(${escala})`;
+    };
+
+    contenedor.addEventListener('mouseenter', function (e) {
+        aplicarZoom(Math.max(escala, ESCALA_HOVER), e.clientX, e.clientY);
+    });
+
+    contenedor.addEventListener('mouseleave', function () {
+        escala = 1;
+        svg.style.transformOrigin = '50% 50%';
+        svg.style.transform = 'scale(1)';
+    });
+
+    contenedor.addEventListener('wheel', function (e) {
+        e.preventDefault();
+
+        // Normalizar el delta para que la rueda responda igual en todos los navegadores
+        const delta = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+        const factor = Math.exp(-delta * 0.0015);
+
+        aplicarZoom(escala * factor, e.clientX, e.clientY);
+    }, { passive: false });
+}
 
 function limpiarZonasActivas() {
     document.querySelectorAll('.map-container .zona-activa').forEach(zona => {
