@@ -82,22 +82,27 @@ Qué hace ese SQL:
 
 ---
 
-## Paso 3 · Crear el usuario administrador
+## Paso 3 · Activar el login con correo y crear el usuario administrador
 
-1. En Supabase, abrí **Authentication → Users**.
-2. Tocá **Add user → Create new user**.
-3. Completá:
+Primero activá el proveedor de correo. Si está apagado, **cualquier** intento de
+login falla con *Email logins are disabled*, aunque la contraseña sea correcta.
+
+1. Andá a **Authentication → Providers → Email**.
+2. Activá **Enable email provider** (en algunos paneles aparece como
+   *Email > Enable sign in with email*).
+3. Desactivá **Allow new users to sign up** (o *Enable sign-ups*) para que nadie
+   más pueda crearse una cuenta.
+4. Guardá los cambios.
+
+Después creá la cuenta:
+
+5. Abrí **Authentication → Users**.
+6. Tocá **Add user → Create new user**.
+7. Completá:
    - **Email:** el mismo correo que pusiste en las políticas del paso 2.
    - **Password:** una contraseña segura (mínimo 6 caracteres).
    - **Auto Confirm User:** activado. Esto evita tener que confirmar por correo.
-4. Tocá **Create user**.
-
-**Recomendado:** desactivá el registro público para que nadie más pueda crearse
-una cuenta.
-
-1. Andá a **Authentication → Providers → Email**.
-2. Desactivá **Allow new users to sign up** (o *Enable sign-ups*).
-3. Guardá los cambios.
+8. Tocá **Create user**.
 
 Con eso, la única cuenta que puede iniciar sesión es la que creaste desde el
 panel. Los invitados nunca ven el login.
@@ -233,13 +238,32 @@ Durante el evento:
 - Si dice *relation "public.horarios" does not exist*: no se ejecutó el SQL del
   paso 2 o se ejecutó en otro proyecto.
 
+### Dice "No hay conexión con el servidor" pero tengo internet
+
+Casi siempre es la **URL de Supabase mal escrita** en `supabase-config.js`: si
+el proyecto no existe, el navegador falla como si no hubiera red.
+
+1. Abrí **Project Settings → API** y copiá la **Project URL** completa, sin
+   espacios. Debe ser exactamente `https://<referencia>.supabase.co`.
+2. La referencia del proyecto también está dentro de la **anon key**: al
+   decodificarla aparece un campo `"ref"`. La URL y la clave tienen que ser del
+   mismo proyecto y coincidir letra por letra.
+3. Desde la versión corregida, `admin.html` avisa solo cuando detecta que la URL
+   y la clave no coinciden.
+4. Si la URL es correcta, revisá que el proyecto no esté **pausado** (ver más
+   abajo) y probá abrir `https://<referencia>.supabase.co/auth/v1/health` en el
+   navegador: debe responder un JSON, no un error de DNS.
+
 ### No puedo iniciar sesión
 
+- **Email logins are disabled:** el proveedor de correo está apagado. Activalo en
+  **Authentication → Providers → Email** (ver paso 3).
 - **Correo o contraseña incorrectos:** revisá mayúsculas y espacios. Si hace
   falta, cambiá la contraseña desde Supabase.
 - **Falta confirmar el correo:** el usuario se creó sin *Auto Confirm User*.
   Editalo desde **Authentication → Users** o creá otro usuario confirmado.
-- **Failed to fetch:** sin conexión o proyecto pausado.
+- **Failed to fetch:** revisá primero la sección anterior (URL mal escrita). Si
+  la URL está bien, puede ser falta de conexión o proyecto pausado.
 - **Falta completar supabase-config.js:** el archivo sigue con los valores vacíos
   o no se publicó la versión nueva.
 

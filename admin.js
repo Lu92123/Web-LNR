@@ -38,6 +38,12 @@
 
         document.getElementById('loginCard').hidden = false;
 
+        const problemaConfig = HorariosSync.problemaDeConfiguracion();
+        if (problemaConfig) {
+            mostrarErrorConfiguracion(problemaConfig, 'La configuración de Supabase no coincide.');
+            return;
+        }
+
         try {
             sesion = await HorariosSync.obtenerSesion();
         } catch (error) {
@@ -114,11 +120,16 @@
         adminRows.addEventListener('click', manejarAccionFila);
     }
 
-    function mostrarErrorConfiguracion(mensaje) {
+    function mostrarErrorConfiguracion(mensaje, titulo) {
         const aviso = document.getElementById('setupNotice');
         document.getElementById('loginCard').hidden = true;
         document.getElementById('adminPanel').hidden = true;
         aviso.hidden = false;
+
+        if (titulo) {
+            const strong = aviso.querySelector('strong');
+            if (strong) strong.textContent = titulo;
+        }
 
         if (mensaje) {
             const p = document.createElement('p');
@@ -222,6 +233,9 @@
 
     function traducirErrorLogin(error) {
         const mensaje = String(error && error.message ? error.message : error);
+        const problema = typeof HorariosSync.problemaDeConfiguracion === 'function'
+            ? HorariosSync.problemaDeConfiguracion()
+            : '';
 
         if (/invalid login credentials/i.test(mensaje)) {
             return 'Correo o contraseña incorrectos.';
@@ -229,7 +243,14 @@
         if (/email not confirmed/i.test(mensaje)) {
             return 'Falta confirmar el correo. Confirmalo desde Supabase o pedile al administrador que lo haga.';
         }
-        if (/failed to fetch|network/i.test(mensaje)) {
+        if (/email logins? (are|is) disabled|email_provider_disabled/i.test(mensaje)) {
+            return 'El inicio de sesión con correo está desactivado en Supabase. Activalo en Authentication → Providers → Email y volvé a intentar.';
+        }
+        if (/signups? (are|is) disabled|signup_disabled/i.test(mensaje)) {
+            return 'El registro de cuentas está desactivado en Supabase. Creá el usuario administrador desde Authentication → Users.';
+        }
+        if (/failed to fetch|network|load failed/i.test(mensaje)) {
+            if (problema) return problema;
             return 'No hay conexión con el servidor. Revisá los datos móviles o la Wi-Fi.';
         }
         if (/missing supabase/i.test(mensaje)) {

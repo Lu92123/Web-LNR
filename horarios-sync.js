@@ -48,6 +48,47 @@
         return !!(cfg.url && cfg.clave);
     }
 
+    function referenciaDeClave(clave) {
+        // La clave anon clásica es un JWT que incluye el proyecto en el campo "ref".
+        const partes = String(clave || '').split('.');
+        if (partes.length !== 3 || typeof global.atob !== 'function') return '';
+
+        try {
+            const base64 = partes[1].replace(/-/g, '+').replace(/_/g, '/');
+            const relleno = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+            const datos = JSON.parse(global.atob(relleno));
+            return typeof datos.ref === 'string' ? datos.ref : '';
+        } catch (e) {
+            return '';
+        }
+    }
+
+    function problemaDeConfiguracion() {
+        const cfg = leerConfig();
+        if (!cfg.url || !cfg.clave) return '';
+
+        // Las claves nuevas (sb_publishable_...) no incluyen el proyecto.
+        if (cfg.clave.indexOf('sb_publishable_') === 0) return '';
+
+        const ref = referenciaDeClave(cfg.clave);
+        if (!ref) return '';
+
+        let host = '';
+        try {
+            host = new URL(cfg.url).hostname.toLowerCase();
+        } catch (e) {
+            return 'La URL de Supabase no es válida: "' + cfg.url + '". Copiala de Project Settings → API.';
+        }
+
+        const esperado = ref.toLowerCase() + '.supabase.co';
+        if (host !== esperado) {
+            return 'La URL de Supabase no coincide con la clave anon: la clave pertenece al proyecto "' +
+                ref + '", así que la URL debe ser https://' + esperado + '.';
+        }
+
+        return '';
+    }
+
     function obtenerCliente() {
         // Permite inyectar un cliente falso en pruebas.
         if (global.__WEBLIGA_SUPABASE_CLIENT__) {
@@ -497,6 +538,7 @@
 
     global.HorariosSync = {
         estaConfigurado: estaConfigurado,
+        problemaDeConfiguracion: problemaDeConfiguracion,
         urlPublica: urlPublica,
         iniciar: iniciar,
         detener: detener,
