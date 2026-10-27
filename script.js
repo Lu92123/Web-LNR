@@ -312,7 +312,9 @@ function refrescarVista() {
 /**
  * Zoom del mapa al pasar el mouse.
  * - Al entrar al mapa se aplica un zoom pequeño (15%).
- * - La rueda del mouse regula el zoom entre 1x y 3x, centrado en el cursor.
+ * - La rueda del mouse regula el zoom entre 1x y 3x.
+ * - Mientras hay zoom, mover el mouse desplaza el mapa: la zona que se
+ *   apunta queda siempre debajo del cursor, así se puede recorrer todo el plano.
  * - Al salir del mapa vuelve al tamaño original.
  * Funciona igual en modo claro y oscuro.
  */
@@ -326,29 +328,65 @@ function inicializarZoomMapa() {
     const ESCALA_MAX = 3;
 
     let escala = 1;
+    let framePendiente = null;
+    let ultimoX = null;
+    let ultimoY = null;
+
+    // Coloca el centro de zoom en la posición del cursor dentro del mapa
+    const fijarOrigen = (clientX, clientY) => {
+        const rect = contenedor.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return;
+
+        const x = Math.min(100, Math.max(0, ((clientX - rect.left) / rect.width) * 100));
+        const y = Math.min(100, Math.max(0, ((clientY - rect.top) / rect.height) * 100));
+
+        svg.style.transformOrigin = `${x}% ${y}%`;
+    };
 
     const aplicarZoom = (nuevaEscala, clientX, clientY) => {
         escala = Math.min(ESCALA_MAX, Math.max(ESCALA_MIN, nuevaEscala));
 
-        // El zoom se centra en la posición del cursor
         if (typeof clientX === 'number' && typeof clientY === 'number') {
-            const rect = contenedor.getBoundingClientRect();
-            if (rect.width > 0 && rect.height > 0) {
-                const x = ((clientX - rect.left) / rect.width) * 100;
-                const y = ((clientY - rect.top) / rect.height) * 100;
-                svg.style.transformOrigin = `${x}% ${y}%`;
-            }
+            fijarOrigen(clientX, clientY);
         }
 
         svg.style.transform = `scale(${escala})`;
+    };
+
+    // Mientras el mapa está ampliado, seguir al cursor para poder recorrerlo
+    const programarSeguimiento = (clientX, clientY) => {
+        ultimoX = clientX;
+        ultimoY = clientY;
+
+        if (framePendiente !== null) return;
+
+        framePendiente = requestAnimationFrame(function () {
+            framePendiente = null;
+
+            if (escala > 1 && ultimoX !== null && ultimoY !== null) {
+                fijarOrigen(ultimoX, ultimoY);
+            }
+        });
     };
 
     contenedor.addEventListener('mouseenter', function (e) {
         aplicarZoom(Math.max(escala, ESCALA_HOVER), e.clientX, e.clientY);
     });
 
+    contenedor.addEventListener('mousemove', function (e) {
+        if (escala <= 1) return;
+        programarSeguimiento(e.clientX, e.clientY);
+    });
+
     contenedor.addEventListener('mouseleave', function () {
+        if (framePendiente !== null) {
+            cancelAnimationFrame(framePendiente);
+            framePendiente = null;
+        }
+
         escala = 1;
+        ultimoX = null;
+        ultimoY = null;
         svg.style.transformOrigin = '50% 50%';
         svg.style.transform = 'scale(1)';
     });
