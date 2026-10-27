@@ -795,6 +795,30 @@ html, body {
     flex-shrink: 0;
 }
 
+/* Botón de edición: oculto en TV, visible en pantallas táctiles */
+.schedule-edit {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.schedule-edit:active {
+    color: var(--neon-cyan);
+    border-color: var(--neon-cyan);
+}
+
 /* Footer Bottom */
 .footer-bottom {
     grid-row: 4;
@@ -939,5 +963,375 @@ html, body {
     }
     .schedule-title {
         font-size: 1.9vh;
+    }
+}
+
+/* ================================================================
+   CELULARES Y TABLETS: layout apilado y con scroll vertical
+   (la vista de TV se mantiene intacta por encima de 1024px)
+   ================================================================ */
+@media (max-width: 1024px) {
+    html,
+    body {
+        height: auto;
+        width: 100%;
+        min-height: 100%;
+        overflow-x: hidden;
+        overflow-y: auto;
+        -webkit-text-size-adjust: 100%;
+    }
+
+    .app-container {
+        width: 100%;
+        height: auto;
+        min-height: 100vh;
+        min-height: 100dvh;
+        max-height: none;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 10px 10px calc(16px + env(safe-area-inset-bottom));
+        overflow: visible;
+    }
+
+    /* ---------- Encabezado ---------- */
+    .header-top {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px 10px;
+        padding: 10px 12px;
+    }
+
+    .event-title {
+        order: 1;
+        flex: 1 1 100%;
+        text-align: center;
+    }
+
+    .event-title h1 {
+        font-size: 19px;
+        line-height: 1.25;
+        letter-spacing: 0.6px;
+    }
+
+    .header-left {
+        order: 2;
+    }
+
+    .live-clock {
+        order: 3;
+        gap: 8px;
+    }
+
+    .clock-label {
+        font-size: 11px;
+        letter-spacing: 1px;
+    }
+
+    .clock-time {
+        font-size: 24px;
+        letter-spacing: 0.5px;
+    }
+
+    .theme-toggle {
+        font-size: 13px;
+        padding: 7px 10px;
+        min-height: 36px;
+    }
+
+    .time-debug-input.active {
+        font-size: 16px;
+    }
+
+    /* ---------- Panel "AHORA MISMO" ---------- */
+    .now-section {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        padding: 12px;
+    }
+
+    .now-indicator {
+        gap: 8px;
+    }
+
+    .now-dot {
+        width: 12px;
+        height: 12px;
+    }
+
+    .now-text {
+        font-size: 14px;
+        letter-spacing: 1px;
+    }
+
+    .current-activity {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        height: auto;
+    }
+
+    .now-chips {
+        flex-wrap: wrap;
+        gap: 8px;
+        max-height: none;
+        overflow: visible;
+    }
+
+    .now-chip {
+        flex: 1 1 calc(50% - 4px);
+        max-width: none;
+        padding: 8px 10px;
+    }
+
+    .now-chip-state {
+        font-size: 9px;
+        letter-spacing: 0.5px;
+    }
+
+    .now-chip-title {
+        font-size: 16px;
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip;
+        overflow-wrap: anywhere;
+    }
+
+    .now-chip-time {
+        font-size: 11px;
+    }
+
+    .now-chips.single .now-chip {
+        flex: 1 1 100%;
+        max-width: none;
+        padding: 12px;
+    }
+
+    .now-chips.single .now-chip-title {
+        font-size: 22px;
+    }
+
+    .now-chips.single .now-chip-time {
+        font-size: 12px;
+    }
+
+    .now-next-box {
+        min-width: 0;
+        max-width: none;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 4px 8px;
+        padding: 8px 0 0;
+        border-left: none;
+        border-top: 1px solid var(--border-color);
+    }
+
+    .now-next-label {
+        font-size: 10px;
+        letter-spacing: 0.6px;
+    }
+
+    .now-next-title {
+        font-size: 16px;
+        white-space: normal;
+    }
+
+    .now-next-time {
+        font-size: 12px;
+    }
+
+    .now-next-main {
+        gap: 6px 10px;
+    }
+
+    .now-next-flag {
+        font-size: 10px;
+    }
+
+    .current-activity-title {
+        font-size: 21px;
+    }
+
+    .current-activity-zone {
+        font-size: 12px;
+        padding: 2px 8px;
+    }
+
+    .current-activity-time {
+        font-size: 13px;
+    }
+
+    .now-finished-line {
+        font-size: 12px;
+    }
+
+    /* ---------- Contenido principal en una columna ---------- */
+    .main-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        min-height: 0;
+        overflow: visible;
+    }
+
+    .section-header {
+        padding: 8px 12px;
+    }
+
+    .section-header h2 {
+        font-size: 14px;
+        letter-spacing: 1px;
+    }
+
+    /* ---------- Mapa ---------- */
+    .map-section {
+        overflow: hidden;
+    }
+
+    .map-container {
+        padding: 6px;
+    }
+
+    .map-container svg {
+        width: 100%;
+        height: auto;
+        max-height: none;
+        display: block;
+    }
+
+    .map-zoom-hint {
+        display: none;
+    }
+
+    /* ---------- Cronograma ---------- */
+    .schedule-section {
+        overflow: visible;
+    }
+
+    .schedule-list {
+        flex: 0 0 auto;
+        overflow: visible;
+        padding: 6px 0;
+    }
+
+    .schedule-item {
+        gap: 10px;
+        padding: 9px 12px;
+        margin: 4px 8px;
+        cursor: default;
+        touch-action: manipulation;
+    }
+
+    .schedule-time {
+        min-width: 58px;
+        font-size: 15px;
+    }
+
+    .schedule-time-end {
+        font-size: 11px;
+    }
+
+    .schedule-title {
+        font-size: 15px;
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip;
+    }
+
+    .schedule-zone {
+        font-size: 11.5px;
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip;
+    }
+
+    .live-badge,
+    .done-badge {
+        font-size: 9px;
+        padding: 3px 7px;
+        letter-spacing: 0.4px;
+    }
+
+    .schedule-edit {
+        display: flex;
+        width: 36px;
+        height: 36px;
+        font-size: 17px;
+    }
+
+    /* ---------- Footer / logos ---------- */
+    .footer-bottom {
+        overflow: visible;
+    }
+
+    .sponsors-container {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        padding: 10px;
+        height: auto;
+        overflow: visible;
+    }
+
+    .footer-group {
+        flex: 0 0 auto;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+        height: auto;
+        overflow: visible;
+    }
+
+    .footer-separator {
+        width: 100%;
+        height: 1px;
+        background: var(--border-color);
+    }
+
+    .group-label {
+        writing-mode: horizontal-tb;
+        transform: none;
+        font-size: 11px;
+        letter-spacing: 0.8px;
+        padding: 0;
+    }
+
+    .logos-carousel {
+        flex: 0 0 auto;
+        height: 34px;
+    }
+
+    .logos-track {
+        gap: 14px;
+        animation-duration: 40s;
+    }
+
+    .sponsors-track {
+        animation-duration: 35s;
+    }
+
+    .logo-item {
+        height: 30px;
+        max-height: 30px;
+        padding: 0 2px;
+    }
+
+    .logo-item img {
+        max-width: 80px;
+    }
+}
+
+/* En pantallas táctiles no tiene sentido la pista de zoom con rueda */
+@media (hover: none) {
+    .map-zoom-hint {
+        display: none;
+    }
+
+    .schedule-edit {
+        display: flex;
     }
 }

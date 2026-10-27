@@ -214,7 +214,13 @@ function renderizarCronograma() {
                 <div class="schedule-zone">${escapeHtml(evento.zona)}</div>
             </div>
             <div class="schedule-status"></div>
+            <button type="button" class="schedule-edit" title="Editar horario" aria-label="Editar horario de ${escapeHtml(evento.titulo)}">✎</button>
         `;
+
+        item.querySelector('.schedule-edit').addEventListener('click', function (e) {
+            e.stopPropagation();
+            modificarEvento(evento.id);
+        });
 
         item.addEventListener('dblclick', function (e) {
             e.stopPropagation();
