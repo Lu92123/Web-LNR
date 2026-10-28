@@ -179,7 +179,19 @@
             return false;
         }
 
-        const firmaNueva = JSON.stringify(datos);
+        const documentoNuevo = Object.assign({}, documento, datos);
+
+        // Si el documento guardado no trae alguna pantalla que sí está en
+        // brackets-data.js (por ejemplo, una categoría nueva), se agrega vacía
+        // para que la TV la muestre igual.
+        documentoNuevo.categorias = Logica.fusionarPantallas(
+            datos.categorias,
+            DATOS_ESTATICOS && Array.isArray(DATOS_ESTATICOS.categorias)
+                ? DATOS_ESTATICOS.categorias
+                : []
+        );
+
+        const firmaNueva = JSON.stringify(documentoNuevo);
 
         if (firmaNueva === firmaAplicada) {
             actualizarPie(registro);
@@ -191,7 +203,7 @@
         const anterior = categorias[indiceActual];
         const idAnterior = anterior ? (anterior.id || anterior.titulo) : null;
 
-        documento = Object.assign({}, documento, datos);
+        documento = documentoNuevo;
 
         const nuevasCategorias = documento.categorias.filter(function (categoria) {
             return categoria && categoria.tipo;

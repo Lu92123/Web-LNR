@@ -284,8 +284,8 @@ volver a subir la web.
 El documento guardado es la **versión 2**: incluye la lista maestra de equipos y
 las **seis pantallas** (Mini Sumo, Sumo, Fútbol, Sigue Líneas, Laberinto y
 Resumen). Si el documento guardado no tiene alguna pantalla que sí está en
-`brackets-data.js`, el panel la agrega vacía en su lugar: los equipos y los
-resultados ya cargados no se pierden.
+`brackets-data.js`, el panel y la TV la agregan vacía en su lugar: los equipos y
+los resultados ya cargados no se pierden.
 
 La caché vieja del navegador se descarta sola: la versión 3 usa
 `webliga-llaves-cache-v3` y borra la anterior (`webliga-llaves-cache-v2`), así

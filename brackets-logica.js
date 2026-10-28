@@ -641,6 +641,115 @@
 
     const VERSION_ACTUAL = 2;
 
+    /* ------------------------------------------------------------------ */
+    /* Estructura de las pantallas                                        */
+    /* ------------------------------------------------------------------ */
+
+    function combateVacio() {
+        return {
+            equipoA: null,
+            equipoB: null,
+            puntosA: null,
+            puntosB: null,
+            estado: 'pendiente'
+        };
+    }
+
+    function partidoFutbolVacio() {
+        return {
+            equipoA: null,
+            equipoB: null,
+            golesA: null,
+            golesB: null,
+            penalesA: null,
+            penalesB: null,
+            estado: 'pendiente'
+        };
+    }
+
+    /** Copia la estructura de una pantalla base pero sin equipos ni resultados. */
+    function pantallaVacia(base) {
+        const copia = JSON.parse(JSON.stringify(base || {}));
+
+        if (copia.tipo === 'llaves') {
+            copia.rondas = (Array.isArray(copia.rondas) ? copia.rondas : []).map(function (ronda) {
+                const info = ronda && typeof ronda === 'object' ? ronda : {};
+
+                return {
+                    nombre: info.nombre || '',
+                    partidos: (Array.isArray(info.partidos) ? info.partidos : []).map(function () {
+                        return combateVacio();
+                    })
+                };
+            });
+
+            copia.tercerPuesto = combateVacio();
+        } else if (copia.tipo === 'futbol') {
+            copia.grupos = (Array.isArray(copia.grupos) ? copia.grupos : []).map(function (grupo) {
+                const info = grupo && typeof grupo === 'object' ? grupo : {};
+
+                return {
+                    nombre: info.nombre || '',
+                    equipos: [null, null, null],
+                    partidos: [partidoFutbolVacio()]
+                };
+            });
+
+            copia.playoffs = {
+                semifinales: [partidoFutbolVacio(), partidoFutbolVacio()],
+                final: partidoFutbolVacio(),
+                tercerPuesto: partidoFutbolVacio()
+            };
+        } else if (copia.tipo === 'tiempos' || copia.tipo === 'laberinto') {
+            copia.entradas = [];
+        }
+
+        return copia;
+    }
+
+    /**
+     * Ordena las pantallas guardadas según la lista base (brackets-data.js) y
+     * agrega vacías las que falten (por ejemplo, una categoría nueva). Las
+     * pantallas que no están en la base se conservan al final.
+     */
+    function fusionarPantallas(lista, base) {
+        const guardadas = Array.isArray(lista) ? lista : [];
+        const modelo = Array.isArray(base) ? base : [];
+
+        if (!modelo.length) return guardadas.slice();
+
+        const usadas = [];
+        const resultado = [];
+
+        modelo.forEach(function (categoria) {
+            if (!categoria || !categoria.id) return;
+
+            const encontrada = guardadas.find(function (guardada) {
+                return guardada && guardada.id === categoria.id &&
+                    usadas.indexOf(guardada) === -1;
+            });
+
+            if (encontrada) {
+                usadas.push(encontrada);
+                resultado.push(encontrada);
+            } else {
+                resultado.push(pantallaVacia(categoria));
+            }
+        });
+
+        guardadas.forEach(function (guardada) {
+            if (!guardada || usadas.indexOf(guardada) !== -1) return;
+
+            const estaEnBase = modelo.some(function (categoria) {
+                return categoria && categoria.id === guardada.id;
+            });
+
+            if (!estaEnBase) resultado.push(guardada);
+        });
+
+        return resultado;
+    }
+
     function documentoValido(datos) {
         return !!(datos &&
             Number(datos.version) >= VERSION_ACTUAL &&
@@ -651,6 +760,10 @@
 
     global.BracketsLogica = {
         VERSION_ACTUAL: VERSION_ACTUAL,
+        combateVacio: combateVacio,
+        partidoFutbolVacio: partidoFutbolVacio,
+        pantallaVacia: pantallaVacia,
+        fusionarPantallas: fusionarPantallas,
         num: num,
         formatearTiempo: formatearTiempo,
         partirTiempo: partirTiempo,

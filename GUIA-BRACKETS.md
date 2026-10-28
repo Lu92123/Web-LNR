@@ -295,16 +295,17 @@ caché distinta (`webliga-llaves-cache-v3`) y borra la anterior
 ## Categorías nuevas en un torneo ya guardado
 
 Si `brackets-data.js` trae una pantalla que no estaba en el documento guardado
-(por ejemplo, al agregar **Laberinto**), el panel la inserta sola en el orden
-correcto y **vacía**, sin tocar los equipos ni los resultados existentes.
+(por ejemplo, al agregar **Laberinto**), tanto el panel como la TV la insertan
+solas en el orden correcto y **vacía**, sin tocar los equipos ni los resultados
+existentes. La TV la muestra con el aviso “Sin pasadas cargadas” hasta que se
+carguen resultados.
 
 En ese caso:
 
 1. Abrí `admin.html` y verificá que aparezca la pantalla nueva en el
    desplegable, sin datos.
 2. Cargá los robots de esa categoría en **Equipos inscriptos** y sus resultados.
-3. Tocá **Guardar en la 2.ª TV** una vez. Hasta ese guardado, la TV sigue
-   mostrando las pantallas anteriores.
+3. Tocá **Guardar en la 2.ª TV** para publicarlos.
 
 ## Problemas frecuentes
 

@@ -2365,88 +2365,14 @@
     /**
      * Ordena las pantallas guardadas según brackets-data.js y agrega las que
      * falten vacías (por ejemplo, una categoría nueva como Laberinto).
-     * Las pantallas guardadas que ya no están en el archivo base se conservan
-     * al final para no perder datos.
      */
     function fusionarPantallas(lista) {
-        const guardadas = Array.isArray(lista) ? lista : [];
         const base = typeof bracketsEvento !== 'undefined' && bracketsEvento &&
             Array.isArray(bracketsEvento.categorias)
             ? bracketsEvento.categorias
             : [];
 
-        if (!base.length) return guardadas.slice();
-
-        const usadas = [];
-        const resultado = [];
-
-        base.forEach(function (categoria) {
-            if (!categoria || !categoria.id) return;
-
-            const encontrada = guardadas.find(function (guardada) {
-                return guardada && guardada.id === categoria.id &&
-                    usadas.indexOf(guardada) === -1;
-            });
-
-            if (encontrada) {
-                usadas.push(encontrada);
-                resultado.push(encontrada);
-            } else {
-                resultado.push(pantallaSinDatos(categoria));
-            }
-        });
-
-        guardadas.forEach(function (guardada) {
-            if (!guardada || usadas.indexOf(guardada) !== -1) return;
-
-            const estaEnBase = base.some(function (categoria) {
-                return categoria && categoria.id === guardada.id;
-            });
-
-            if (!estaEnBase) resultado.push(guardada);
-        });
-
-        return resultado;
-    }
-
-    /** Pantalla nueva: misma estructura, sin equipos ni resultados de ejemplo. */
-    function pantallaSinDatos(categoria) {
-        const copia = clonar(categoria);
-
-        if (copia.tipo === 'llaves') {
-            copia.rondas = (Array.isArray(copia.rondas) ? copia.rondas : []).map(function (ronda) {
-                const info = ronda && typeof ronda === 'object' ? ronda : {};
-
-                return {
-                    nombre: info.nombre || '',
-                    partidos: (Array.isArray(info.partidos) ? info.partidos : []).map(function () {
-                        return combateVacio();
-                    })
-                };
-            });
-
-            copia.tercerPuesto = combateVacio();
-        } else if (copia.tipo === 'futbol') {
-            copia.grupos = (Array.isArray(copia.grupos) ? copia.grupos : []).map(function (grupo) {
-                const info = grupo && typeof grupo === 'object' ? grupo : {};
-
-                return {
-                    nombre: info.nombre || '',
-                    equipos: [null, null, null],
-                    partidos: [partidoFutbolVacio()]
-                };
-            });
-
-            copia.playoffs = {
-                semifinales: [partidoFutbolVacio(), partidoFutbolVacio()],
-                final: partidoFutbolVacio(),
-                tercerPuesto: partidoFutbolVacio()
-            };
-        } else if (copia.tipo === 'tiempos' || copia.tipo === 'laberinto') {
-            copia.entradas = [];
-        }
-
-        return copia;
+        return Logica.fusionarPantallas(lista, base);
     }
 
     function normalizarCombate(partido) {
