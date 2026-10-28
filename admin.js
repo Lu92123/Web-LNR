@@ -483,7 +483,8 @@
         { clave: 'mini-sumo', etiqueta: 'Mini Sumo' },
         { clave: 'sumo', etiqueta: 'Sumo' },
         { clave: 'futbol', etiqueta: 'Fútbol de Robots' },
-        { clave: 'sigue-lineas', etiqueta: 'Sigue Líneas' }
+        { clave: 'sigue-lineas', etiqueta: 'Sigue Líneas' },
+        { clave: 'laberinto', etiqueta: 'Laberinto' }
     ];
 
     const ESTADOS_PARTIDO = [
@@ -669,6 +670,8 @@
             editor.appendChild(crearEditorPlayoffsFutbol(categoria));
         } else if (categoria.tipo === 'tiempos') {
             editor.appendChild(crearEditorTiempos(categoria));
+        } else if (categoria.tipo === 'laberinto') {
+            editor.appendChild(crearEditorLaberinto(categoria));
         } else {
             editor.appendChild(crearEditorResumen(categoria));
         }
@@ -1068,6 +1071,8 @@
             refrescarVistaFutbol();
         } else if (categoria.tipo === 'tiempos') {
             refrescarMejoresTiempos();
+        } else if (categoria.tipo === 'laberinto') {
+            refrescarLaberinto();
         }
     }
 
@@ -1117,6 +1122,24 @@
                 chip.textContent = 'Mejor: ' + Logica.formatearTiempo(mejorTiempoEntrada(entrada));
             }
         );
+    }
+
+    function refrescarLaberinto() {
+        const categoria = categoriaLlavesActual();
+        if (!categoria || categoria.tipo !== 'laberinto') return;
+
+        Array.prototype.forEach.call(
+            document.querySelectorAll('#llavesEditor .admin-llaves-partido--laberinto'),
+            function (caja) {
+                const indice = Number(caja.dataset.fila);
+                const entrada = (categoria.entradas || [])[indice];
+
+                if (entrada) actualizarResumenLaberinto(caja, entrada);
+            }
+        );
+
+        const podio = document.querySelector('#llavesEditor .admin-llaves-podio-hint');
+        if (podio) podio.textContent = textoPodio(categoria);
     }
 
     function partidoResueltoFutbol(resuelto, clave) {
@@ -1515,6 +1538,171 @@
         return grupo;
     }
 
+    /* ---------- Laberinto ---------- */
+
+    function crearEditorLaberinto(categoria) {
+        const bloque = crearBloqueLlaves('Laberinto · 2 configuraciones');
+        agregarAccionBloque(bloque, '+ Robot', 'add-tiempo');
+
+        bloque.appendChild(crear('p', 'admin-llaves-hint',
+            'Cada robot corre 5 pasadas en cada una de las 2 configuraciones. ' +
+            'Cargá el tiempo de las pasadas que llegaron a la meta (segundos y ' +
+            'milésimas) y, si no llegó, las celdas que le faltaron. La TV toma ' +
+            'sola la mejor pasada de cada configuración y arma la clasificación.'));
+
+        const entradas = Array.isArray(categoria.entradas) ? categoria.entradas : [];
+
+        if (!entradas.length) {
+            bloque.appendChild(crear('p', 'admin-muted', 'No hay robots cargados.'));
+        }
+
+        const lista = crear('div', 'admin-llaves-partidos');
+
+        entradas.forEach(function (entrada, indice) {
+            lista.appendChild(crearTarjetaLaberinto(entrada, indice));
+        });
+
+        bloque.appendChild(lista);
+
+        bloque.appendChild(crear('p', 'admin-llaves-hint admin-llaves-podio-hint', textoPodio(categoria)));
+
+        return bloque;
+    }
+
+    function crearTarjetaLaberinto(entrada, indice) {
+        const caja = crear('div', 'admin-llaves-partido admin-llaves-partido--laberinto');
+        caja.dataset.fila = String(indice);
+
+        const cabecera = crear('div', 'admin-llaves-partido-campos admin-laberinto-cabecera');
+        cabecera.appendChild(crearCampoLlaves('Robot', crearSelectEquipos(
+            'laberinto',
+            entrada.equipo,
+            { ambito: 'laberinto-equipo', fila: String(indice) }
+        ), 'ancho-equipo'));
+
+        cabecera.appendChild(crear('span', 'admin-laberinto-total', ''));
+        caja.appendChild(cabecera);
+
+        for (let config = 0; config < Logica.CONFIGURACIONES_LABERINTO; config += 1) {
+            caja.appendChild(crearConfiguracionLaberinto(entrada, indice, config));
+        }
+
+        caja.appendChild(crearBotonLlaves(
+            'Quitar',
+            'ghost admin-llaves-quitar',
+            'del-tiempo',
+            { fila: String(indice) }
+        ));
+
+        actualizarResumenLaberinto(caja, entrada);
+        return caja;
+    }
+
+    function crearConfiguracionLaberinto(entrada, indice, config) {
+        const datosConfig = (entrada.configuraciones || [])[config] || {};
+        const pasadas = Array.isArray(datosConfig.pasadas) ? datosConfig.pasadas : [];
+
+        const bloque = crear('div', 'admin-laberinto-config');
+        bloque.dataset.config = String(config);
+
+        const titulo = crear('div', 'admin-laberinto-config-head');
+        titulo.appendChild(crear('strong', '', 'CONFIGURACIÓN ' + (config + 1)));
+
+        const mejor = crear('span', 'admin-laberinto-mejor', '');
+        mejor.dataset.config = String(config);
+        titulo.appendChild(mejor);
+
+        bloque.appendChild(titulo);
+
+        for (let pasada = 0; pasada < Logica.PASADAS_LABERINTO; pasada += 1) {
+            bloque.appendChild(crearPasadaLaberinto(
+                pasadas[pasada],
+                indice,
+                config,
+                pasada
+            ));
+        }
+
+        return bloque;
+    }
+
+    function crearPasadaLaberinto(pasada, fila, config, indicePasada) {
+        const datos = pasada && typeof pasada === 'object' ? pasada : {};
+        const partes = Logica.partirTiempo(datos.tiempo);
+
+        const filaEl = crear('div', 'admin-laberinto-pasada');
+        filaEl.appendChild(crear('span', 'admin-laberinto-pasada-nombre', 'P' + (indicePasada + 1)));
+
+        const segundos = crearInputLlaves(
+            partes.segundos === '' ? '' : String(partes.segundos),
+            {
+                ambito: 'laberinto-tiempo',
+                fila: String(fila),
+                config: String(config),
+                pasada: String(indicePasada),
+                campo: 'segundos'
+            },
+            { tipo: 'number', min: '0', placeholder: 'seg', clase: 'admin-tiempo-seg' }
+        );
+
+        const milesimas = crearInputLlaves(
+            partes.milesimas === '' ? '' : String(partes.milesimas).padStart(3, '0'),
+            {
+                ambito: 'laberinto-tiempo',
+                fila: String(fila),
+                config: String(config),
+                pasada: String(indicePasada),
+                campo: 'milesimas'
+            },
+            { placeholder: '000', clase: 'admin-tiempo-ms' }
+        );
+
+        milesimas.inputMode = 'numeric';
+        milesimas.maxLength = 3;
+
+        const restante = crearInputNumero(datos.restante, {
+            ambito: 'laberinto-restante',
+            fila: String(fila),
+            config: String(config),
+            pasada: String(indicePasada)
+        }, { min: '0', placeholder: 'celdas', clase: 'admin-laberinto-celdas' });
+
+        filaEl.appendChild(segundos);
+        filaEl.appendChild(crear('span', 'admin-tiempo-unidad', 's'));
+        filaEl.appendChild(milesimas);
+        filaEl.appendChild(crear('span', 'admin-tiempo-unidad', 'ms'));
+        filaEl.appendChild(crear('span', 'admin-laberinto-sep', 'o faltan'));
+        filaEl.appendChild(restante);
+        filaEl.appendChild(crear('span', 'admin-tiempo-unidad', 'celdas'));
+
+        return filaEl;
+    }
+
+    /** Resumen de una tarjeta: mejor pasada por configuración y total. */
+    function actualizarResumenLaberinto(caja, entrada) {
+        const configuraciones = Logica.configuracionesLaberinto(entrada || {});
+        const resueltas = configuraciones.filter(function (config) {
+            return config.resuelta;
+        });
+
+        const total = resueltas.length
+            ? resueltas.reduce(function (suma, config) {
+                return suma + config.tiempo;
+            }, 0)
+            : null;
+
+        const totalEl = caja.querySelector('.admin-laberinto-total');
+        if (totalEl) {
+            totalEl.textContent = 'Resueltas ' + resueltas.length + '/2 · Total: ' +
+                (total === null ? '—' : Logica.formatearTiempo(total));
+        }
+
+        configuraciones.forEach(function (config, indice) {
+            const chip = caja.querySelector('.admin-laberinto-mejor[data-config="' + indice + '"]');
+            if (chip) chip.textContent = 'Mejor: ' + Logica.textoConfiguracion(config);
+        });
+    }
+
     /* ---------- Resumen ---------- */
 
     function crearEditorResumen(categoria) {
@@ -1632,6 +1820,35 @@
         } else if (ambito === 'tiempo') {
             const entrada = (categoria.entradas || [])[Number(datos.fila)];
             if (entrada) entrada.equipo = valor || null;
+        } else if (ambito === 'laberinto-equipo') {
+            const entrada = (categoria.entradas || [])[Number(datos.fila)];
+            if (entrada) entrada.equipo = valor || null;
+        } else if (ambito === 'laberinto-tiempo') {
+            const entrada = (categoria.entradas || [])[Number(datos.fila)];
+            const pasada = pasadaLaberinto(entrada, Number(datos.config), Number(datos.pasada));
+
+            if (pasada) {
+                const contenedor = control.closest('.admin-laberinto-pasada');
+                const segundos = contenedor
+                    ? contenedor.querySelector('[data-campo="segundos"]')
+                    : null;
+                const milesimas = contenedor
+                    ? contenedor.querySelector('[data-campo="milesimas"]')
+                    : null;
+
+                pasada.tiempo = Logica.unirTiempo(
+                    segundos ? segundos.value : '',
+                    milesimas ? milesimas.value : ''
+                );
+            }
+        } else if (ambito === 'laberinto-restante') {
+            const entrada = (categoria.entradas || [])[Number(datos.fila)];
+            const pasada = pasadaLaberinto(entrada, Number(datos.config), Number(datos.pasada));
+
+            if (pasada) {
+                const celdas = numeroONull(valor);
+                pasada.restante = celdas === null ? null : Math.max(0, Math.round(celdas));
+            }
         } else if (ambito === 'tiempo-tiempo') {
             const entrada = (categoria.entradas || [])[Number(datos.fila)];
             if (entrada) {
@@ -1770,10 +1987,22 @@
             }
         } else if (accion === 'add-tiempo') {
             categoria.entradas = Array.isArray(categoria.entradas) ? categoria.entradas : [];
-            categoria.entradas.push({
-                equipo: null,
-                tiempos: [null, null, null]
-            });
+
+            if (categoria.tipo === 'laberinto') {
+                categoria.entradas.push({
+                    equipo: null,
+                    configuraciones: [
+                        { pasadas: [] },
+                        { pasadas: [] }
+                    ]
+                });
+            } else {
+                categoria.entradas.push({
+                    equipo: null,
+                    tiempos: [null, null, null]
+                });
+            }
+
             cambio = true;
         } else if (accion === 'del-tiempo') {
             if (Array.isArray(categoria.entradas)) {
@@ -2016,7 +2245,7 @@
                 };
             });
 
-        const lista = Array.isArray(doc.categorias) ? doc.categorias : [];
+        const lista = fusionarPantallas(Array.isArray(doc.categorias) ? doc.categorias.slice() : []);
 
         doc.categorias = lista.filter(function (categoria) {
             return categoria && typeof categoria === 'object';
@@ -2086,12 +2315,138 @@
                         ]
                     };
                 });
+            } else if (datos.tipo === 'laberinto') {
+                datos.equipos = 'laberinto';
+                datos.configuraciones = Logica.CONFIGURACIONES_LABERINTO;
+                datos.pasadas = Logica.PASADAS_LABERINTO;
+
+                datos.entradas = (Array.isArray(datos.entradas) ? datos.entradas : []).map(function (entrada) {
+                    const info = entrada && typeof entrada === 'object' ? entrada : {};
+                    const configuraciones = Array.isArray(info.configuraciones)
+                        ? info.configuraciones
+                        : [];
+
+                    const salida = [];
+
+                    for (let c = 0; c < Logica.CONFIGURACIONES_LABERINTO; c += 1) {
+                        const config = configuraciones[c] && typeof configuraciones[c] === 'object'
+                            ? configuraciones[c]
+                            : {};
+                        const pasadas = Array.isArray(config.pasadas) ? config.pasadas : [];
+                        const lista = [];
+
+                        for (let p = 0; p < Logica.PASADAS_LABERINTO; p += 1) {
+                            const pasada = pasadas[p] && typeof pasadas[p] === 'object'
+                                ? pasadas[p]
+                                : {};
+
+                            lista.push({
+                                tiempo: numeroONull(pasada.tiempo),
+                                restante: numeroONull(pasada.restante)
+                            });
+                        }
+
+                        salida.push({ pasadas: lista });
+                    }
+
+                    return {
+                        equipo: info.equipo || null,
+                        configuraciones: salida
+                    };
+                });
             }
 
             return datos;
         });
 
         return doc;
+    }
+
+    /**
+     * Ordena las pantallas guardadas según brackets-data.js y agrega las que
+     * falten vacías (por ejemplo, una categoría nueva como Laberinto).
+     * Las pantallas guardadas que ya no están en el archivo base se conservan
+     * al final para no perder datos.
+     */
+    function fusionarPantallas(lista) {
+        const guardadas = Array.isArray(lista) ? lista : [];
+        const base = typeof bracketsEvento !== 'undefined' && bracketsEvento &&
+            Array.isArray(bracketsEvento.categorias)
+            ? bracketsEvento.categorias
+            : [];
+
+        if (!base.length) return guardadas.slice();
+
+        const usadas = [];
+        const resultado = [];
+
+        base.forEach(function (categoria) {
+            if (!categoria || !categoria.id) return;
+
+            const encontrada = guardadas.find(function (guardada) {
+                return guardada && guardada.id === categoria.id &&
+                    usadas.indexOf(guardada) === -1;
+            });
+
+            if (encontrada) {
+                usadas.push(encontrada);
+                resultado.push(encontrada);
+            } else {
+                resultado.push(pantallaSinDatos(categoria));
+            }
+        });
+
+        guardadas.forEach(function (guardada) {
+            if (!guardada || usadas.indexOf(guardada) !== -1) return;
+
+            const estaEnBase = base.some(function (categoria) {
+                return categoria && categoria.id === guardada.id;
+            });
+
+            if (!estaEnBase) resultado.push(guardada);
+        });
+
+        return resultado;
+    }
+
+    /** Pantalla nueva: misma estructura, sin equipos ni resultados de ejemplo. */
+    function pantallaSinDatos(categoria) {
+        const copia = clonar(categoria);
+
+        if (copia.tipo === 'llaves') {
+            copia.rondas = (Array.isArray(copia.rondas) ? copia.rondas : []).map(function (ronda) {
+                const info = ronda && typeof ronda === 'object' ? ronda : {};
+
+                return {
+                    nombre: info.nombre || '',
+                    partidos: (Array.isArray(info.partidos) ? info.partidos : []).map(function () {
+                        return combateVacio();
+                    })
+                };
+            });
+
+            copia.tercerPuesto = combateVacio();
+        } else if (copia.tipo === 'futbol') {
+            copia.grupos = (Array.isArray(copia.grupos) ? copia.grupos : []).map(function (grupo) {
+                const info = grupo && typeof grupo === 'object' ? grupo : {};
+
+                return {
+                    nombre: info.nombre || '',
+                    equipos: [null, null, null],
+                    partidos: [partidoFutbolVacio()]
+                };
+            });
+
+            copia.playoffs = {
+                semifinales: [partidoFutbolVacio(), partidoFutbolVacio()],
+                final: partidoFutbolVacio(),
+                tercerPuesto: partidoFutbolVacio()
+            };
+        } else if (copia.tipo === 'tiempos' || copia.tipo === 'laberinto') {
+            copia.entradas = [];
+        }
+
+        return copia;
     }
 
     function normalizarCombate(partido) {
@@ -2204,7 +2559,7 @@
                     if (partido.equipoA === id) partido.equipoA = null;
                     if (partido.equipoB === id) partido.equipoB = null;
                 });
-            } else if (categoria.tipo === 'tiempos') {
+            } else if (categoria.tipo === 'tiempos' || categoria.tipo === 'laberinto') {
                 categoria.entradas = (categoria.entradas || []).filter(function (entrada) {
                     return entrada.equipo !== id;
                 });
@@ -2219,6 +2574,41 @@
         });
 
         return validos.length ? Math.min.apply(null, validos) : null;
+    }
+
+    /** Devuelve (y crea si hace falta) la pasada de una configuración. */
+    function pasadaLaberinto(entrada, config, indicePasada) {
+        if (!entrada) return null;
+
+        entrada.configuraciones = Array.isArray(entrada.configuraciones)
+            ? entrada.configuraciones
+            : [];
+
+        while (entrada.configuraciones.length <= config) {
+            entrada.configuraciones.push({ pasadas: [] });
+        }
+
+        const bloque = entrada.configuraciones[config] && typeof entrada.configuraciones[config] === 'object'
+            ? entrada.configuraciones[config]
+            : { pasadas: [] };
+
+        entrada.configuraciones[config] = bloque;
+        bloque.pasadas = Array.isArray(bloque.pasadas) ? bloque.pasadas : [];
+
+        while (bloque.pasadas.length <= indicePasada) {
+            bloque.pasadas.push({ tiempo: null, restante: null });
+        }
+
+        const actual = bloque.pasadas[indicePasada];
+
+        if (!actual || typeof actual !== 'object') {
+            bloque.pasadas[indicePasada] = { tiempo: null, restante: null };
+        } else {
+            actual.tiempo = numeroONull(actual.tiempo);
+            actual.restante = numeroONull(actual.restante);
+        }
+
+        return bloque.pasadas[indicePasada];
     }
 
     function textoPodio(categoria) {
@@ -2262,7 +2652,8 @@
     }
 
     function tipoPantallaValido(tipo) {
-        if (tipo === 'llaves' || tipo === 'futbol' || tipo === 'tiempos' || tipo === 'resumen') {
+        if (tipo === 'llaves' || tipo === 'futbol' || tipo === 'tiempos' ||
+            tipo === 'laberinto' || tipo === 'resumen') {
             return tipo;
         }
         return 'resumen';
@@ -2283,6 +2674,7 @@
         if (tipo === 'llaves') return 'Llaves / eliminación directa';
         if (tipo === 'futbol') return 'Fútbol · grupos y eliminatorias';
         if (tipo === 'tiempos') return 'Tabla de tiempos';
+        if (tipo === 'laberinto') return 'Laberinto · 2 configuraciones';
         return 'Resumen y podios';
     }
 

@@ -18,7 +18,8 @@
     const TABLA_LLAVES = 'llaves';
     const CLAVE_CACHE = 'webliga-horarios-cache-v1';
     const CLAVE_CACHE_AVISO = 'webliga-aviso-cache-v1';
-    const CLAVE_CACHE_LLAVES = 'webliga-llaves-cache-v2';
+    const CLAVE_CACHE_LLAVES = 'webliga-llaves-cache-v3';
+    const CLAVE_CACHE_LLAVES_VIEJA = 'webliga-llaves-cache-v2';
     const INTERVALO_RESPALDO = 30000;
     const TIEMPO_MAXIMO_LECTURA = 12000;
     const TIEMPO_MAXIMO_ESCRITURA = 15000;
@@ -236,6 +237,11 @@
 
     function leerCacheLlaves() {
         try {
+            // La caché anterior no tenía Laberinto: se descarta sola.
+            if (global.localStorage.getItem(CLAVE_CACHE_LLAVES_VIEJA)) {
+                global.localStorage.removeItem(CLAVE_CACHE_LLAVES_VIEJA);
+            }
+
             const crudo = global.localStorage.getItem(CLAVE_CACHE_LLAVES);
             if (!crudo) return null;
 
@@ -250,6 +256,10 @@
 
     function guardarCacheLlaves(registro) {
         try {
+            if (global.localStorage.getItem(CLAVE_CACHE_LLAVES_VIEJA)) {
+                global.localStorage.removeItem(CLAVE_CACHE_LLAVES_VIEJA);
+            }
+
             global.localStorage.setItem(CLAVE_CACHE_LLAVES, JSON.stringify({
                 datos: registro.datos,
                 actualizadoEn: registro.actualizadoEn || null,

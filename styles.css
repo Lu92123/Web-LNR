@@ -2292,6 +2292,25 @@ html, body {
     background: var(--brk-acento-suave);
 }
 
+/* ---------- Laberinto: dos configuraciones ---------- */
+
+.brk-tabla--laberinto thead th {
+    font-size: 1.2vh;
+    letter-spacing: 0.06em;
+}
+
+.brk-celda-suave {
+    font-size: 1.6vh !important;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.brk-celda-resueltas {
+    font-family: 'Exo 2', sans-serif;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
 /* ---------- Resumen del torneo ---------- */
 
 .brk-resumen {

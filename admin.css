@@ -1047,6 +1047,112 @@ body.admin-page {
     white-space: nowrap;
 }
 
+/* ---------- Laberinto: dos configuraciones por robot ---------- */
+
+.admin-laberinto-cabecera {
+    align-items: flex-end;
+}
+
+.admin-laberinto-total {
+    align-self: center;
+    margin-left: auto;
+    padding: 6px 10px;
+    background: rgba(176, 38, 255, 0.08);
+    border: 1px solid var(--neon-purple, #b026ff);
+    border-radius: 999px;
+    color: var(--text-primary);
+    font-family: 'Exo 2', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.admin-laberinto-config {
+    padding: 8px 10px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+}
+
+.admin-laberinto-config + .admin-laberinto-config {
+    margin-top: 8px;
+}
+
+.admin-laberinto-config-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    margin-bottom: 6px;
+    padding-bottom: 5px;
+    border-bottom: 1px dashed var(--border-color);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 11.5px;
+    letter-spacing: 0.1em;
+    color: var(--text-secondary);
+}
+
+.admin-laberinto-config-head strong {
+    color: var(--text-primary);
+}
+
+.admin-laberinto-mejor {
+    margin-left: auto;
+    color: var(--neon-cyan);
+    font-family: 'Exo 2', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0;
+    white-space: nowrap;
+}
+
+.admin-laberinto-pasada {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 0;
+}
+
+.admin-laberinto-pasada-nombre {
+    width: 26px;
+    color: var(--text-secondary);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+}
+
+.admin-laberinto-pasada input {
+    min-height: 32px;
+    padding: 5px 7px;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-family: 'Exo 2', monospace;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+
+.admin-laberinto-pasada input:focus {
+    outline: 2px solid var(--neon-cyan);
+    outline-offset: 1px;
+}
+
+.admin-laberinto-sep {
+    margin-left: 4px;
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.admin-laberinto-celdas {
+    width: 68px;
+}
+
 .admin-llaves-podio-linea {
     display: flex;
     flex-wrap: wrap;

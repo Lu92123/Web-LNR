@@ -1,4 +1,4 @@
-# Llaves, fútbol y tiempos (segunda TV)
+# Llaves, fútbol, tiempos y laberinto (segunda TV)
 
 Pantalla para la TV de competidores y jueces del **torneo local de la Nave
 Cultural**. Sigue los formatos oficiales de la Liga Nacional de Robótica (LNR),
@@ -11,7 +11,7 @@ Archivos:
 | --- | --- |
 | `brackets.html` | La pantalla (carrusel automático). |
 | `brackets.js` | Dibuja cada pantalla y maneja el carrusel. No hace falta tocarlo. |
-| `brackets-logica.js` | Cálculos compartidos: ganadores, tablas, cruces, tiempos y podios. |
+| `brackets-logica.js` | Cálculos compartidos: ganadores, tablas, cruces, tiempos, laberinto y podios. |
 | `brackets-data.js` | Equipos y resultados de respaldo si Supabase no está configurado. |
 | `admin.html` / `admin.js` | Panel para cargar equipos y resultados. |
 | `supabase/llaves.sql` | Tabla de la nube (hay que ejecutarla una vez). |
@@ -22,13 +22,14 @@ Archivos:
 - Publicada: `https://lu92123.github.io/Web-LNR/brackets.html`.
 - En la TV: abrir a pantalla completa (tecla **F**) y dejarla rotando sola.
 
-## Las cinco pantallas
+## Las seis pantallas
 
 1. **Mini Sumo** — eliminación directa.
 2. **Sumo** — eliminación directa.
 3. **Fútbol de Robots** — grupos, semifinales, final y tercer puesto.
 4. **Sigue Líneas** — tabla de tiempos (tres pasadas, mejor tiempo).
-5. **Resumen del torneo** — podios y medallero de todas las categorías.
+5. **Laberinto** — dos configuraciones, cinco pasadas por robot en cada una.
+6. **Resumen del torneo** — podios y medallero de todas las categorías.
 
 El resumen y los podios **se calculan solos** con los resultados de las otras
 pantallas: no se editan a mano.
@@ -58,6 +59,18 @@ pantallas: no se editan a mano.
 - Los tiempos se guardan en milisegundos y la TV los muestra como `12.480 s`.
 - La tabla se ordena sola y el podio sale de los tres mejores tiempos.
 
+### Laberinto
+
+- **Dos configuraciones** del laberinto y **cinco pasadas** por robot en cada una.
+- Vale la **mejor pasada** de cada configuración: si el robot llegó a la meta,
+  el menor tiempo; si no llegó, la menor cantidad de celdas restantes.
+- Clasificación: 1) más configuraciones resueltas, 2) menor tiempo total sumando
+  las resueltas, 3) menor distancia restante promedio, 4) nombre.
+- La TV muestra solo la mejor pasada de cada configuración y el tiempo total. Las
+  diez pasadas se cargan en el panel.
+- Los tiempos también van en milisegundos y se muestran como `43.870 s`.
+- Si el robot no llegó, se cargan las **celdas restantes** en lugar del tiempo.
+
 ## Cargar resultados desde el panel
 
 1. Abrí `admin.html` e iniciá sesión con la cuenta de administrador.
@@ -81,6 +94,10 @@ pantallas: no se editan a mano.
 - **Sigue Líneas:** elegí el robot y cargá segundos y milésimas de cada pasada.
   El panel muestra el mejor tiempo al instante. Si una pasada no se corrió, se
   deja vacía.
+- **Laberinto:** elegí el robot y cargá las cinco pasadas de cada configuración.
+  Por cada pasada poné el tiempo (segundos y milésimas) o, si no llegó, las
+  celdas restantes. El panel muestra la mejor pasada de cada configuración y el
+  total, y actualiza el podio mientras escribís.
 - **Resumen:** no se edita. Muestra el podio calculado de cada categoría.
 
 ### Detalles útiles
@@ -134,9 +151,11 @@ const bracketsEvento = {
 };
 ```
 
-Categorías válidas de equipo: `mini-sumo`, `sumo`, `futbol`, `sigue-lineas`.
+Categorías válidas de equipo: `mini-sumo`, `sumo`, `futbol`, `sigue-lineas`,
+`laberinto`.
 
-Tipos de pantalla (`tipo`): `llaves`, `futbol`, `tiempos`, `resumen`.
+Tipos de pantalla (`tipo`): `llaves`, `futbol`, `tiempos`, `laberinto`,
+`resumen`.
 
 ### Llaves
 
@@ -215,6 +234,32 @@ Los clasificados aparecen recién cuando el grupo está completo.
 Los tiempos van en **milisegundos**. `null` es una pasada no corrida. La tabla
 se ordena por el menor tiempo válido.
 
+### Laberinto
+
+```js
+{
+    id: "laberinto",
+    tipo: "laberinto",
+    equipos: "laberinto",
+    configuraciones: 2,
+    pasadas: 5,
+    entradas: [
+        {
+            equipo: "lb-teseo",
+            configuraciones: [
+                { pasadas: [{ tiempo: 45320 }, { tiempo: 44120 }, null, null, null] },
+                { pasadas: [{ restante: 3 }, null, null, null, null] }
+            ]
+        }
+    ]
+}
+```
+
+Cada configuración tiene cinco pasadas. En cada pasada vale `tiempo`
+(milisegundos, si llegó a la meta) **o** `restante` (celdas que le faltaron).
+La TV calcula sola la mejor pasada de cada configuración, las resueltas y el
+tiempo total, y ordena según el reglamento LNR.
+
 ### Resumen
 
 ```js
@@ -243,8 +288,23 @@ Si cambiaste la estructura del documento o querés descartar lo guardado:
 2. Abrí `admin.html`, verificá que cargue el torneo de ejemplo y tocá
    **Guardar en la 2.ª TV**.
 
-La caché vieja del navegador se descarta sola: la versión 2 usa una clave de
-caché distinta (`webliga-llaves-cache-v2`).
+La caché vieja del navegador se descarta sola: la versión 3 usa una clave de
+caché distinta (`webliga-llaves-cache-v3`) y borra la anterior
+(`webliga-llaves-cache-v2`).
+
+## Categorías nuevas en un torneo ya guardado
+
+Si `brackets-data.js` trae una pantalla que no estaba en el documento guardado
+(por ejemplo, al agregar **Laberinto**), el panel la inserta sola en el orden
+correcto y **vacía**, sin tocar los equipos ni los resultados existentes.
+
+En ese caso:
+
+1. Abrí `admin.html` y verificá que aparezca la pantalla nueva en el
+   desplegable, sin datos.
+2. Cargá los robots de esa categoría en **Equipos inscriptos** y sus resultados.
+3. Tocá **Guardar en la 2.ª TV** una vez. Hasta ese guardado, la TV sigue
+   mostrando las pantallas anteriores.
 
 ## Problemas frecuentes
 

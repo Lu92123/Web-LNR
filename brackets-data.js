@@ -24,14 +24,16 @@
  *   Los partidos guardan el "id" del equipo, no su nombre. Si se cambia el
  *   nombre en el panel, la TV lo actualiza en todos lados.
  *
- *   Categorías válidas: "mini-sumo" | "sumo" | "futbol" | "sigue-lineas"
+ *   Categorías válidas: "mini-sumo" | "sumo" | "futbol" | "sigue-lineas" |
+ *   "laberinto"
  *
  * TIPOS DE PANTALLA (campo "tipo")
  * -------------------------------
- *   "llaves"  -> eliminación directa: cuartos, semifinales, final y 3.er puesto
- *   "futbol"  -> fase de grupos + semifinales + final + 3.er puesto
- *   "tiempos" -> tabla de tiempos de Sigue Líneas (3 pasadas, mejor tiempo)
- *   "resumen" -> podios de todas las categorías (se calcula solo)
+ *   "llaves"    -> eliminación directa: cuartos, semifinales, final y 3.er puesto
+ *   "futbol"    -> fase de grupos + semifinales + final + 3.er puesto
+ *   "tiempos"   -> tabla de tiempos de Sigue Líneas (3 pasadas, mejor tiempo)
+ *   "laberinto" -> 2 configuraciones × 5 pasadas, mejor pasada de cada una
+ *   "resumen"   -> podios de todas las categorías (se calcula solo)
  *
  * MINI SUMO Y SUMO (reglamento LNR)
  * ---------------------------------
@@ -49,6 +51,14 @@
  * ------------
  *   Tres pasadas por robot. Los tiempos se guardan en MILISEGUNDOS y la TV
  *   los muestra como "12.480 s". Gana el menor tiempo.
+ *
+ * LABERINTO (reglamento LNR)
+ * --------------------------
+ *   Dos configuraciones del laberinto, cinco pasadas por robot en cada una.
+ *   Vale la mejor pasada de cada configuración: si el robot llega a la meta
+ *   se toma el menor tiempo; si no llega, la menor cantidad de celdas
+ *   restantes. Clasificación: primero quien resuelve más configuraciones,
+ *   después el menor tiempo total y por último la menor distancia restante.
  */
 
 const bracketsEvento = {
@@ -105,7 +115,17 @@ const bracketsEvento = {
         { id: "sl-cometa", nombre: "Cometa", institucion: "E.E.T. N° 6", categoria: "sigue-lineas" },
         { id: "sl-vertigo", nombre: "Vértigo", institucion: "Escuela N° 12", categoria: "sigue-lineas" },
         { id: "sl-trueno", nombre: "Trueno", institucion: "Colegio Norte", categoria: "sigue-lineas" },
-        { id: "sl-dinamo", nombre: "Dínamo", institucion: "Escuela Industrial", categoria: "sigue-lineas" }
+        { id: "sl-dinamo", nombre: "Dínamo", institucion: "Escuela Industrial", categoria: "sigue-lineas" },
+
+        /* ---------- Laberinto (8 robots) ---------- */
+        { id: "lb-teseo", nombre: "Teseo", institucion: "E.E.S.T. N° 4", categoria: "laberinto" },
+        { id: "lb-ariadna", nombre: "Ariadna", institucion: "Colegio Del Sol", categoria: "laberinto" },
+        { id: "lb-dedalo", nombre: "Dédalo", institucion: "Fundación TAE", categoria: "laberinto" },
+        { id: "lb-minotauro", nombre: "Minotauro", institucion: "Instituto Andes", categoria: "laberinto" },
+        { id: "lb-icaro", nombre: "Ícaro", institucion: "E.E.T. N° 6", categoria: "laberinto" },
+        { id: "lb-brujula", nombre: "Brújula", institucion: "Escuela N° 12", categoria: "laberinto" },
+        { id: "lb-nexo", nombre: "Nexo", institucion: "Colegio San Rafael", categoria: "laberinto" },
+        { id: "lb-ruta", nombre: "Ruta", institucion: "Univ. Mendoza", categoria: "laberinto" }
     ],
 
     /* ================================================================ */
@@ -283,7 +303,81 @@ const bracketsEvento = {
         },
 
         /* ------------------------------------------------------------ */
-        /* 5. RESUMEN DEL TORNEO · podios (se calcula solo)             */
+        /* 5. LABERINTO · 2 configuraciones × 5 pasadas                 */
+        /* ------------------------------------------------------------ */
+        {
+            id: "laberinto",
+            tipo: "laberinto",
+            titulo: "LABERINTO",
+            fase: "2 CONFIGURACIONES · MEJOR PASADA",
+            corto: "LABERINTO",
+            acento: "#b026ff",
+            equipos: "laberinto",
+            configuraciones: 2,
+            pasadas: 5,
+            nota: "5 pasadas por robot en cada configuración · vale la mejor pasada · si no llega, se cuenta la distancia restante",
+            entradas: [
+                {
+                    equipo: "lb-teseo",
+                    configuraciones: [
+                        { pasadas: [{ tiempo: 45320 }, { tiempo: 44120 }, { tiempo: 43870 }, null, null] },
+                        { pasadas: [{ tiempo: 51200 }, { tiempo: 49880 }, null, null, null] }
+                    ]
+                },
+                {
+                    equipo: "lb-ariadna",
+                    configuraciones: [
+                        { pasadas: [{ tiempo: 47110 }, { tiempo: 46980 }, null, null, null] },
+                        { pasadas: [{ tiempo: 48230 }, { tiempo: 47900 }, null, null, null] }
+                    ]
+                },
+                {
+                    equipo: "lb-icaro",
+                    configuraciones: [
+                        { pasadas: [{ tiempo: 55900 }, { tiempo: 54310 }, null, null, null] },
+                        { pasadas: [{ tiempo: 58200 }, null, null, null, null] }
+                    ]
+                },
+                {
+                    equipo: "lb-dedalo",
+                    configuraciones: [
+                        { pasadas: [{ tiempo: 49540 }, null, null, null, null] },
+                        { pasadas: [{ restante: 3 }, { restante: 2 }, null, null, null] }
+                    ]
+                },
+                {
+                    equipo: "lb-minotauro",
+                    configuraciones: [
+                        { pasadas: [{ tiempo: 52480 }, null, null, null, null] },
+                        { pasadas: [{ restante: 5 }, { restante: 6 }, null, null, null] }
+                    ]
+                },
+                {
+                    equipo: "lb-nexo",
+                    configuraciones: [
+                        { pasadas: [{ tiempo: 61200 }, { tiempo: 62050 }, null, null, null] },
+                        { pasadas: [null, null, null, null, null] }
+                    ]
+                },
+                {
+                    equipo: "lb-brujula",
+                    configuraciones: [
+                        { pasadas: [{ restante: 4 }, { restante: 5 }, null, null, null] },
+                        { pasadas: [{ restante: 6 }, null, null, null, null] }
+                    ]
+                },
+                {
+                    equipo: "lb-ruta",
+                    configuraciones: [
+                        { pasadas: [{ restante: 7 }, { restante: 6 }, null, null, null] },
+                        { pasadas: [{ restante: 8 }, null, null, null, null] }
+                    ]
+                }
+            ]
+        },
+
+        /* ------------------------------------------------------------ */
+        /* 6. RESUMEN DEL TORNEO · podios (se calcula solo)             */
         /* ------------------------------------------------------------ */
         {
             id: "resumen",

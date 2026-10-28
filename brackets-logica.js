@@ -445,6 +445,149 @@
     }
 
     /* ------------------------------------------------------------------ */
+    /* Laberinto: dos configuraciones, mejor pasada de cada una           */
+    /* ------------------------------------------------------------------ */
+
+    const PASADAS_LABERINTO = 5;
+    const CONFIGURACIONES_LABERINTO = 2;
+
+    function normalizarPasada(pasada) {
+        const datos = pasada && typeof pasada === 'object' ? pasada : {};
+        const tiempo = num(datos.tiempo);
+        const restante = num(datos.restante);
+
+        return {
+            tiempo: tiempo !== null && tiempo > 0 ? tiempo : null,
+            restante: restante !== null && restante >= 0 ? restante : null
+        };
+    }
+
+    /**
+     * Mejor pasada de una configuración (reglamento LNR 5.2.1):
+     * si el robot llegó a la meta vale el menor tiempo; si no llegó, se
+     * clasifica por la menor cantidad de celdas restantes.
+     */
+    function mejorPasada(pasadas) {
+        const lista = (Array.isArray(pasadas) ? pasadas : []).map(normalizarPasada);
+        const tiempos = [];
+        const restantes = [];
+
+        lista.forEach(function (pasada) {
+            if (pasada.tiempo !== null) tiempos.push(pasada.tiempo);
+            else if (pasada.restante !== null) restantes.push(pasada.restante);
+        });
+
+        if (tiempos.length) {
+            return {
+                resuelta: true,
+                tiempo: Math.min.apply(null, tiempos),
+                restante: null
+            };
+        }
+
+        if (restantes.length) {
+            return {
+                resuelta: false,
+                tiempo: null,
+                restante: Math.min.apply(null, restantes)
+            };
+        }
+
+        return { resuelta: false, tiempo: null, restante: null };
+    }
+
+    function configuracionesLaberinto(entrada) {
+        const configuraciones = entrada && Array.isArray(entrada.configuraciones)
+            ? entrada.configuraciones
+            : [];
+
+        const resultado = [];
+
+        for (let i = 0; i < CONFIGURACIONES_LABERINTO; i += 1) {
+            const configuracion = configuraciones[i] && typeof configuraciones[i] === 'object'
+                ? configuraciones[i]
+                : {};
+
+            resultado.push(mejorPasada(configuracion.pasadas));
+        }
+
+        return resultado;
+    }
+
+    /**
+     * Tabla de Laberinto con la clasificación grupal del reglamento (5.2.2):
+     *   1. Más configuraciones resueltas.
+     *   2. Menor tiempo total sumando las configuraciones resueltas.
+     *   3. Menor distancia restante promedio.
+     */
+    function tablaLaberinto(categoria) {
+        const entradas = categoria && Array.isArray(categoria.entradas) ? categoria.entradas : [];
+
+        const filas = entradas.map(function (entrada) {
+            const datos = entrada && typeof entrada === 'object' ? entrada : {};
+            const configuraciones = configuracionesLaberinto(datos);
+            const resueltas = configuraciones.filter(function (config) {
+                return config.resuelta;
+            });
+
+            const restantes = configuraciones
+                .filter(function (config) {
+                    return !config.resuelta && config.restante !== null;
+                })
+                .map(function (config) {
+                    return config.restante;
+                });
+
+            return {
+                equipo: datos.equipo || null,
+                configuraciones: configuraciones,
+                resueltas: resueltas.length,
+                total: resueltas.length
+                    ? resueltas.reduce(function (suma, config) {
+                        return suma + config.tiempo;
+                    }, 0)
+                    : null,
+                promedioRestante: restantes.length
+                    ? restantes.reduce(function (suma, valor) {
+                        return suma + valor;
+                    }, 0) / restantes.length
+                    : null
+            };
+        });
+
+        filas.sort(function (a, b) {
+            if (b.resueltas !== a.resueltas) return b.resueltas - a.resueltas;
+
+            if (a.total !== null && b.total !== null && a.total !== b.total) {
+                return a.total - b.total;
+            }
+
+            if (a.promedioRestante !== null && b.promedioRestante !== null &&
+                a.promedioRestante !== b.promedioRestante) {
+                return a.promedioRestante - b.promedioRestante;
+            }
+
+            if (a.promedioRestante === null && b.promedioRestante !== null) return 1;
+            if (a.promedioRestante !== null && b.promedioRestante === null) return -1;
+
+            return String(a.equipo).localeCompare(String(b.equipo), 'es');
+        });
+
+        return filas;
+    }
+
+    /** Texto corto de una configuración para la TV y el panel. */
+    function textoConfiguracion(configuracion) {
+        if (!configuracion) return '—';
+        if (configuracion.resuelta) return formatearTiempo(configuracion.tiempo);
+        if (configuracion.restante !== null) {
+            return 'Faltan ' + configuracion.restante +
+                (configuracion.restante === 1 ? ' celda' : ' celdas');
+        }
+        return '—';
+    }
+
+    /* ------------------------------------------------------------------ */
     /* Podios                                                             */
     /* ------------------------------------------------------------------ */
 
@@ -473,6 +616,15 @@
 
         if (categoria.tipo === 'tiempos') {
             const tabla = tablaTiempos(categoria);
+            return {
+                campeon: tabla[0] ? tabla[0].equipo : null,
+                subcampeon: tabla[1] ? tabla[1].equipo : null,
+                tercero: tabla[2] ? tabla[2].equipo : null
+            };
+        }
+
+        if (categoria.tipo === 'laberinto') {
+            const tabla = tablaLaberinto(categoria);
             return {
                 campeon: tabla[0] ? tabla[0].equipo : null,
                 subcampeon: tabla[1] ? tabla[1].equipo : null,
@@ -518,6 +670,12 @@
         perdedorFutbol: perdedorFutbol,
         resolverFutbol: resolverFutbol,
         tablaTiempos: tablaTiempos,
+        PASADAS_LABERINTO: PASADAS_LABERINTO,
+        CONFIGURACIONES_LABERINTO: CONFIGURACIONES_LABERINTO,
+        mejorPasada: mejorPasada,
+        configuracionesLaberinto: configuracionesLaberinto,
+        tablaLaberinto: tablaLaberinto,
+        textoConfiguracion: textoConfiguracion,
         podioCategoria: podioCategoria,
         documentoValido: documentoValido
     };

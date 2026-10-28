@@ -256,7 +256,7 @@ escanearlas con un celular antes del evento.
 
 ---
 
-## Segunda pantalla: llaves, fútbol y tiempos
+## Segunda pantalla: llaves, fútbol, tiempos y laberinto
 
 La pantalla `brackets.html` se edita desde el mismo panel, sin tocar código ni
 volver a subir la web.
@@ -272,6 +272,9 @@ volver a subir la web.
     y los cruces (1.º A vs 2.º B) se completan solos.
   - **Sigue Líneas:** tres pasadas por robot en segundos y milésimas. La TV
     muestra `12.480 s` y ordena por el mejor tiempo.
+  - **Laberinto:** dos configuraciones × cinco pasadas por robot. Por pasada se
+    carga el tiempo o, si no llegó, las celdas restantes. La TV muestra la mejor
+    pasada de cada configuración y el total.
   - **Resumen:** no se edita; arma los podios de todas las categorías.
 - **Segundos por pantalla** controla la rotación del carrusel (5 a 300).
 - **Guardar en la 2.ª TV** publica al instante: la TV cambia sola, sin recargar.
@@ -279,8 +282,14 @@ volver a subir la web.
 - El pie de `brackets.html` muestra la fecha y hora real del último guardado.
 
 El documento guardado es la **versión 2**: incluye la lista maestra de equipos y
-las cinco pantallas. La caché vieja del navegador se descarta sola
-(`webliga-llaves-cache-v2`), así que no hace falta limpiar nada a mano.
+las **seis pantallas** (Mini Sumo, Sumo, Fútbol, Sigue Líneas, Laberinto y
+Resumen). Si el documento guardado no tiene alguna pantalla que sí está en
+`brackets-data.js`, el panel la agrega vacía en su lugar: los equipos y los
+resultados ya cargados no se pierden.
+
+La caché vieja del navegador se descarta sola: la versión 3 usa
+`webliga-llaves-cache-v3` y borra la anterior (`webliga-llaves-cache-v2`), así
+que no hace falta limpiar nada a mano.
 
 Solo la cuenta administrador puede guardar. Los invitados y las TVs únicamente
 leen. Si la nube está vacía, el panel arranca con el torneo de ejemplo de
@@ -452,7 +461,7 @@ entrando al panel unos días antes del evento.
 | Archivo | Función |
 | --- | --- |
 | `index.html` | Tablero público (TV y celulares). |
-| `brackets.html` / `brackets.js` / `brackets-logica.js` / `brackets-data.js` | Segunda TV: llaves, fútbol, tiempos y podios. |
+| `brackets.html` / `brackets.js` / `brackets-logica.js` / `brackets-data.js` | Segunda TV: llaves, fútbol, tiempos, laberinto y podios. |
 | `script.js` | Render, reloj, mapa y sincronización del tablero. |
 | `horarios-sync.js` | Cliente de Supabase: lectura, Realtime, polling, caché y escritura. |
 | `supabase-config.js` | URL, clave pública y dirección del QR. |

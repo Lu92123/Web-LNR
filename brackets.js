@@ -290,6 +290,8 @@
                 seccion.appendChild(crearFutbol(categoria));
             } else if (categoria.tipo === 'tiempos') {
                 seccion.appendChild(crearTablaTiempos(categoria));
+            } else if (categoria.tipo === 'laberinto') {
+                seccion.appendChild(crearTablaLaberinto(categoria));
             } else if (categoria.tipo === 'resumen') {
                 seccion.appendChild(crearResumen(categoria));
             } else {
@@ -665,6 +667,94 @@
 
         tabla.appendChild(tbody);
         panel.appendChild(tabla);
+        return panel;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Laberinto: dos configuraciones y clasificación final               */
+    /* ------------------------------------------------------------------ */
+
+    function crearTablaLaberinto(categoria) {
+        const filas = Logica.tablaLaberinto(categoria);
+        const panel = crearEl('div', 'brk-tabla-panel');
+        const tabla = crearEl('table', 'brk-tabla brk-tabla--tiempos brk-tabla--laberinto');
+
+        const thead = document.createElement('thead');
+        const filaHead = document.createElement('tr');
+
+        [
+            { titulo: 'POS' },
+            { titulo: 'ROBOT', izquierda: true },
+            { titulo: 'INSTITUCIÓN', izquierda: true },
+            { titulo: 'CONFIG. 1' },
+            { titulo: 'CONFIG. 2' },
+            { titulo: 'RESUELTAS' },
+            { titulo: 'TIEMPO TOTAL', destacada: true }
+        ].forEach(function (columna) {
+            const th = document.createElement('th');
+            th.textContent = columna.titulo;
+            if (columna.izquierda) th.classList.add('brk-izq');
+            if (columna.destacada) th.classList.add('brk-celda-destacada');
+            filaHead.appendChild(th);
+        });
+
+        thead.appendChild(filaHead);
+        tabla.appendChild(thead);
+
+        const tbody = document.createElement('tbody');
+
+        filas.forEach(function (fila, indice) {
+            const tr = document.createElement('tr');
+            const equipo = Logica.equipo(documento, fila.equipo);
+
+            if (indice < 3 && fila.resueltas > 0) {
+                tr.classList.add('brk-fila-' + (indice + 1));
+            }
+
+            const celdas = [
+                { valor: String(indice + 1), clase: 'brk-pos-celda' },
+                { valor: equipo ? equipo.nombre : 'Por definir', clase: 'brk-izq brk-celda-robot' },
+                { valor: equipo && equipo.institucion ? equipo.institucion : '—', clase: 'brk-izq brk-celda-inst' },
+                {
+                    valor: Logica.textoConfiguracion(fila.configuraciones[0]),
+                    clase: 'brk-celda-tiempo' +
+                        (fila.configuraciones[0] && fila.configuraciones[0].resuelta ? '' : ' brk-celda-suave')
+                },
+                {
+                    valor: Logica.textoConfiguracion(fila.configuraciones[1]),
+                    clase: 'brk-celda-tiempo' +
+                        (fila.configuraciones[1] && fila.configuraciones[1].resuelta ? '' : ' brk-celda-suave')
+                },
+                { valor: fila.resueltas + '/2', clase: 'brk-celda-resueltas' },
+                {
+                    valor: fila.total === null ? '—' : Logica.formatearTiempo(fila.total),
+                    clase: 'brk-celda-tiempo brk-celda-destacada'
+                }
+            ];
+
+            celdas.forEach(function (celda) {
+                const td = document.createElement('td');
+                td.textContent = celda.valor;
+                if (celda.clase) td.className = celda.clase;
+                tr.appendChild(td);
+            });
+
+            tbody.appendChild(tr);
+        });
+
+        if (!filas.length) {
+            const tr = document.createElement('tr');
+            const td = document.createElement('td');
+            td.colSpan = 7;
+            td.className = 'brk-tabla-vacia-celda';
+            td.textContent = 'Sin pasadas cargadas';
+            tr.appendChild(td);
+            tbody.appendChild(tr);
+        }
+
+        tabla.appendChild(tbody);
+        panel.appendChild(tabla);
+
         return panel;
     }
 
