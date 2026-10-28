@@ -105,7 +105,7 @@ html, body {
     height: 100vh;
     width: 100vw;
     display: grid;
-    grid-template-rows: 8vh 16vh 1fr 10vh;
+    grid-template-rows: 8vh auto 16vh 1fr 10vh;
     grid-template-columns: 1fr;
     gap: 1vh;
     padding: 1vh 1.5vw;
@@ -190,11 +190,8 @@ html, body {
    En TV/vista fija flota bajo el encabezado para cubrir el tablero
    sin desarmar la grilla; en celulares pasa a ser un elemento normal. */
 .aviso-banner {
-    position: fixed;
-    top: calc(8vh + 2vh);
-    left: 1.5vw;
-    right: 1.5vw;
-    z-index: 50;
+    grid-row: 2;
+    position: static;
     display: flex;
     align-items: center;
     gap: 1.2vw;
@@ -223,6 +220,11 @@ html, body {
         animation: none;
         box-shadow: 0 6px 18px rgba(0, 0, 0, 0.30);
     }
+}
+
+/* El atributo hidden debe ganarle al display: flex */
+.aviso-banner[hidden] {
+    display: none !important;
 }
 
 .aviso-icono {
@@ -286,7 +288,7 @@ html, body {
 
 /* Zona Superior Prominente "AHORA MISMO" */
 .now-section {
-    grid-row: 2;
+    grid-row: 3;
     display: flex;
     align-items: center;
     gap: 2vw;
@@ -529,7 +531,7 @@ html, body {
 
 /* Main Grid */
 .main-grid {
-    grid-row: 3;
+    grid-row: 4;
     display: grid;
     grid-template-columns: 1.3fr 0.7fr;
     gap: 1.5vw;
@@ -983,7 +985,7 @@ html, body {
 
 /* Footer Bottom */
 .footer-bottom {
-    grid-row: 4;
+    grid-row: 5;
     background: var(--bg-secondary);
     border: 2px solid var(--border-color);
     border-radius: 8px;
