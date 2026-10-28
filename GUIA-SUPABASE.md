@@ -256,22 +256,35 @@ escanearlas con un celular antes del evento.
 
 ---
 
-## Segunda pantalla: llaves y posiciones
+## Segunda pantalla: llaves, fútbol y tiempos
 
 La pantalla `brackets.html` se edita desde el mismo panel, sin tocar código ni
 volver a subir la web.
 
 - En `admin.html`, tarjeta **Llaves y posiciones (2.ª TV)**.
-- Elegí la pantalla (Mini Sumo, Sumo, Fútbol, Sigue Líneas, Liga Nacional) y
-  editá títulos, rondas, partidos, puntos, grupos, tablas y cruces.
+- **Equipos inscriptos** es la lista maestra: cada robot se carga una sola vez
+  con su institución y su categoría. Los cruces, los grupos y los tiempos se
+  eligen desde desplegables, sin escribir nombres a mano.
+- Elegí la pantalla en el desplegable y cargá solo los resultados:
+  - **Mini Sumo / Sumo:** Yuhkoh de cada combate (mejor de 3, gana quien llega
+    a 2). El ganador pasa solo a la ronda siguiente.
+  - **Fútbol:** goles, penales y estado. La tabla de cada grupo se calcula sola
+    y los cruces (1.º A vs 2.º B) se completan solos.
+  - **Sigue Líneas:** tres pasadas por robot en segundos y milésimas. La TV
+    muestra `12.480 s` y ordena por el mejor tiempo.
+  - **Resumen:** no se edita; arma los podios de todas las categorías.
 - **Segundos por pantalla** controla la rotación del carrusel (5 a 300).
 - **Guardar en la 2.ª TV** publica al instante: la TV cambia sola, sin recargar.
 - **Recargar** trae lo último de la nube y descarta los cambios sin guardar.
 - El pie de `brackets.html` muestra la fecha y hora real del último guardado.
 
+El documento guardado es la **versión 2**: incluye la lista maestra de equipos y
+las cinco pantallas. La caché vieja del navegador se descarta sola
+(`webliga-llaves-cache-v2`), así que no hace falta limpiar nada a mano.
+
 Solo la cuenta administrador puede guardar. Los invitados y las TVs únicamente
-leen. Si la nube está vacía, el panel arranca con los datos de ejemplo de
-`brackets-data.js`; al guardar quedan publicados. Si se corta internet, la TV
+leen. Si la nube está vacía, el panel arranca con el torneo de ejemplo de
+`brackets-data.js`; al guardar queda publicado. Si se corta internet, la TV
 sigue con la última copia y se actualiza al volver la conexión.
 
 La guía detallada de la pantalla está en [`GUIA-BRACKETS.md`](GUIA-BRACKETS.md).
@@ -371,7 +384,7 @@ El correo con el que iniciaste sesión no coincide con el de las políticas.
 - Si `brackets.html` no cambia pero el panel guardó, esperá 30 segundos
   (respaldo) y recargá la TV una vez. Verificá que la TV tenga internet.
 - Si la pantalla muestra datos viejos, tocá **Recargar** en el panel y volvé a
-  guardar.
+  guardar. La versión 2 descarta sola la caché anterior del navegador.
 
 ### El proyecto está pausado
 
@@ -439,7 +452,7 @@ entrando al panel unos días antes del evento.
 | Archivo | Función |
 | --- | --- |
 | `index.html` | Tablero público (TV y celulares). |
-| `brackets.html` / `brackets.js` / `brackets-data.js` | Segunda TV: llaves y posiciones. |
+| `brackets.html` / `brackets.js` / `brackets-logica.js` / `brackets-data.js` | Segunda TV: llaves, fútbol, tiempos y podios. |
 | `script.js` | Render, reloj, mapa y sincronización del tablero. |
 | `horarios-sync.js` | Cliente de Supabase: lectura, Realtime, polling, caché y escritura. |
 | `supabase-config.js` | URL, clave pública y dirección del QR. |

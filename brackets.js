@@ -1,10 +1,12 @@
 /**
  * Pantalla de llaves y posiciones · Probotae 2026
  *
- * - Carrusel automático a pantalla completa entre las categorías definidas
+ * - Carrusel automático a pantalla completa entre las pantallas definidas
  *   en brackets-data.js.
  * - El tiempo de cada pantalla sale de bracketsEvento.rotacionSegundos
  *   (también se puede forzar con ?seg=25 en la URL).
+ * - Los cálculos (avance de ganadores, tablas, podios) están en
+ *   brackets-logica.js, que se comparte con el panel de administración.
  * - Controles pensados para una TV: flechas ← →, ESPACIO pausa,
  *   F pantalla completa y un punto por pantalla en el pie.
  */
@@ -13,6 +15,8 @@
 
     const SEGUNDOS_POR_DEFECTO = 18;
     const SEGUNDOS_MINIMOS = 5;
+
+    const Logica = window.BracketsLogica;
 
     const DATOS_ESTATICOS = typeof bracketsEvento !== 'undefined' && bracketsEvento
         ? clonar(bracketsEvento)
@@ -60,6 +64,11 @@
         aplicarTema();
         actualizarReloj();
         setInterval(actualizarReloj, 1000);
+
+        if (!Logica) {
+            mostrarErrorDatos('No se cargó brackets-logica.js. Revisá los archivos de la web.');
+            return;
+        }
 
         if (!documento || !Array.isArray(documento.categorias) || !documento.categorias.length) {
             mostrarErrorDatos();
@@ -128,14 +137,15 @@
         return 0;
     }
 
-    function mostrarErrorDatos() {
+    function mostrarErrorDatos(mensajeExtra) {
         if (!mainEl) return;
         mainEl.textContent = '';
         const mensaje = document.createElement('div');
         mensaje.className = 'brk-error';
         mensaje.innerHTML = '<strong>No hay pantallas para mostrar.</strong>' +
-            '<span>Revisá <code>brackets-data.js</code>: tiene que existir ' +
-            '<code>bracketsEvento.categorias</code> con al menos una categoría.</span>';
+            '<span>' + (mensajeExtra ||
+                'Revisá <code>brackets-data.js</code>: tiene que existir ' +
+                '<code>bracketsEvento.categorias</code> con al menos una categoría.') + '</span>';
         mainEl.appendChild(mensaje);
     }
 
@@ -165,7 +175,7 @@
     function aplicarLlaves(registro) {
         const datos = registro && registro.datos;
 
-        if (!datos || !Array.isArray(datos.categorias) || !datos.categorias.length) {
+        if (!Logica.documentoValido(datos)) {
             return false;
         }
 
@@ -276,10 +286,14 @@
 
             if (categoria.tipo === 'llaves') {
                 seccion.appendChild(crearLlaves(categoria));
-            } else if (categoria.tipo === 'grupos') {
-                seccion.appendChild(crearGrupos(categoria));
+            } else if (categoria.tipo === 'futbol') {
+                seccion.appendChild(crearFutbol(categoria));
+            } else if (categoria.tipo === 'tiempos') {
+                seccion.appendChild(crearTablaTiempos(categoria));
+            } else if (categoria.tipo === 'resumen') {
+                seccion.appendChild(crearResumen(categoria));
             } else {
-                seccion.appendChild(crearTablaPanel(categoria));
+                seccion.appendChild(crearAviso('Tipo de pantalla desconocido: ' + categoria.tipo));
             }
 
             mainEl.appendChild(seccion);
@@ -306,21 +320,24 @@
         });
     }
 
-    function crearLlaves(categoria) {
-        const contenedor = crearEl('div', 'brk-bracket');
-        const rondas = Array.isArray(categoria.rondas) ? categoria.rondas : [];
+    /* ------------------------------------------------------------------ */
+    /* Llaves de eliminación directa                                      */
+    /* ------------------------------------------------------------------ */
 
-        rondas.forEach(function (ronda, indice) {
+    function crearLlaves(categoria) {
+        const resuelto = Logica.resolverLlaves(categoria);
+        const contenedor = crearEl('div', 'brk-bracket');
+
+        resuelto.rondas.forEach(function (ronda, indice) {
             const columna = crearEl('div', 'brk-ronda');
             columna.appendChild(crearEl('h2', 'brk-ronda-titulo',
                 ronda.nombre || 'RONDA ' + (indice + 1)));
 
             const partidos = crearEl('div', 'brk-partidos');
-            const lista = Array.isArray(ronda.partidos) ? ronda.partidos : [];
 
-            if (lista.length) {
-                lista.forEach(function (partido) {
-                    partidos.appendChild(crearPartido(partido));
+            if (ronda.partidos.length) {
+                ronda.partidos.forEach(function (partido) {
+                    partidos.appendChild(crearPartidoLlave(partido));
                 });
             } else {
                 partidos.appendChild(crearEl('p', 'brk-sin-partidos', 'Sin cruces cargados'));
@@ -330,120 +347,158 @@
             contenedor.appendChild(columna);
         });
 
-        contenedor.appendChild(crearCampeon(categoria.campeon));
+        const podio = crearEl('div', 'brk-podio');
+        podio.appendChild(crearEl('h2', 'brk-ronda-titulo', 'TERCER PUESTO'));
+
+        const cajaTercero = crearEl('div', 'brk-partidos brk-partidos--tercero');
+        cajaTercero.appendChild(crearPartidoLlave(resuelto.tercero, 'brk-partido--tercero'));
+        podio.appendChild(cajaTercero);
+
+        podio.appendChild(crearCampeon(resuelto.campeon, categoria));
+        contenedor.appendChild(podio);
+
         return contenedor;
     }
 
-    function crearPartido(partido) {
+    function crearPartidoLlave(partido, claseExtra) {
         const datos = partido || {};
         const estado = datos.estado || 'pendiente';
-        const articulo = crearEl('article', 'brk-partido brk-partido--' + estado);
+        const articulo = crearEl('article', 'brk-partido brk-partido--' + estado +
+            (claseExtra ? ' ' + claseExtra : ''));
 
         if (estado === 'en_curso') {
             articulo.appendChild(crearEl('span', 'brk-en-vivo', 'EN VIVO'));
         }
 
-        const puntajeA = numeroONull(datos.puntosA);
-        const puntajeB = numeroONull(datos.puntosB);
-        let ganaA = false;
-        let ganaB = false;
+        const ganador = Logica.ganadorLlave(datos);
+        const ganaA = !!ganador && ganador === datos.equipoA;
+        const ganaB = !!ganador && ganador === datos.equipoB;
 
-        if (datos.ganador === 'A' || datos.ganador === 'B') {
-            ganaA = datos.ganador === 'A';
-            ganaB = datos.ganador === 'B';
-        } else if (estado === 'finalizado' && puntajeA !== null && puntajeB !== null) {
-            ganaA = puntajeA > puntajeB;
-            ganaB = puntajeB > puntajeA;
-        }
-
-        articulo.appendChild(crearJugador(datos.equipoA, puntajeA, ganaA));
-        articulo.appendChild(crearJugador(datos.equipoB, puntajeB, ganaB));
+        articulo.appendChild(crearJugador(datos.equipoA, datos.puntosA, ganaA));
+        articulo.appendChild(crearJugador(datos.equipoB, datos.puntosB, ganaB));
 
         return articulo;
     }
 
-    function crearJugador(equipo, puntos, ganador) {
+    function crearJugador(idEquipo, puntos, ganador) {
         const fila = crearEl('div', 'brk-jugador');
+        const equipo = Logica.equipo(documento, idEquipo);
 
         if (ganador) fila.classList.add('brk-ganador');
         if (!equipo) fila.classList.add('brk-vacio');
 
-        fila.appendChild(crearEl('span', 'brk-jugador-nombre', equipo || 'Por definir'));
+        const info = crearEl('span', 'brk-jugador-info');
+        info.appendChild(crearEl('span', 'brk-jugador-nombre',
+            equipo ? equipo.nombre : 'Por definir'));
+
+        if (equipo && equipo.institucion) {
+            info.appendChild(crearEl('span', 'brk-jugador-inst', equipo.institucion));
+        }
+
+        fila.appendChild(info);
         fila.appendChild(crearEl('span', 'brk-jugador-puntos',
             puntos === null ? '—' : String(puntos)));
 
         return fila;
     }
 
-    function crearCampeon(campeon) {
-        const datos = campeon || {};
-        const tiene = !!datos.equipo;
+    function crearCampeon(idCampeon, categoria) {
+        const equipo = Logica.equipo(documento, idCampeon);
+        const tarjeta = crearEl('aside', 'brk-campeon' + (equipo ? '' : ' brk-campeon--vacio'));
 
-        const tarjeta = crearEl('aside', 'brk-campeon' + (tiene ? '' : ' brk-campeon--vacio'));
         tarjeta.appendChild(crearEl('span', 'brk-campeon-label', 'CAMPEÓN'));
         tarjeta.appendChild(crearEl('span', 'brk-campeon-nombre',
-            tiene ? datos.equipo : 'Por definir'));
+            equipo ? equipo.nombre : 'Por definir'));
 
-        if (tiene && datos.detalle) {
-            tarjeta.appendChild(crearEl('span', 'brk-campeon-detalle', datos.detalle));
+        if (equipo) {
+            if (equipo.institucion) {
+                tarjeta.appendChild(crearEl('span', 'brk-campeon-detalle', equipo.institucion));
+            }
+            if (categoria && categoria.titulo) {
+                tarjeta.appendChild(crearEl('span', 'brk-campeon-detalle', categoria.titulo));
+            }
         }
 
         return tarjeta;
     }
 
-    function crearGrupos(categoria) {
-        const contenedor = crearEl('div', 'brk-grupos');
-        const grupos = Array.isArray(categoria.grupos) ? categoria.grupos : [];
+    /* ------------------------------------------------------------------ */
+    /* Fútbol de robots                                                   */
+    /* ------------------------------------------------------------------ */
 
-        const filas = crearEl('div', 'brk-grupos-filas');
+    function crearFutbol(categoria) {
+        const resuelto = Logica.resolverFutbol(categoria);
+        const contenedor = crearEl('div', 'brk-futbol');
+
+        /* ----- Fase de grupos ----- */
+        const gruposWrap = crearEl('div', 'brk-futbol-grupos');
+        const grupos = Array.isArray(categoria.grupos) ? categoria.grupos : [];
 
         grupos.forEach(function (grupo) {
             const panel = crearEl('div', 'brk-grupo');
-            panel.appendChild(crearEl('h2', 'brk-grupo-titulo', grupo.nombre || 'GRUPO'));
-            panel.appendChild(crearTabla(categoria.columnas, grupo.equipos));
-            filas.appendChild(panel);
+            panel.appendChild(crearEl('h2', 'brk-grupo-titulo',
+                grupo.nombre || 'GRUPO'));
+
+            const filas = Logica.tablaGrupo(grupo);
+            panel.appendChild(crearTablaGrupo(filas));
+            gruposWrap.appendChild(panel);
         });
 
-        contenedor.appendChild(filas);
-
-        const cruces = categoria.cruces;
-        if (cruces && Array.isArray(cruces.partidos) && cruces.partidos.length) {
-            const bloque = crearEl('div', 'brk-cruces');
-            bloque.appendChild(crearEl('h2', 'brk-cruces-titulo', cruces.titulo || 'CRUCES'));
-
-            const lista = crearEl('div', 'brk-cruces-lista');
-            cruces.partidos.forEach(function (partido) {
-                lista.appendChild(crearPartido(partido));
-            });
-
-            bloque.appendChild(lista);
-            contenedor.appendChild(bloque);
+        if (!grupos.length) {
+            gruposWrap.appendChild(crearAviso('Sin grupos cargados'));
         }
+
+        contenedor.appendChild(gruposWrap);
+
+        /* ----- Eliminatorias ----- */
+        const llave = crearEl('div', 'brk-futbol-llave');
+
+        const columnaIzq = crearEl('div', 'brk-futbol-col');
+        columnaIzq.appendChild(crearEl('h2', 'brk-futbol-titulo', 'SEMIFINALES'));
+
+        const semis = crearEl('div', 'brk-partidos');
+        semis.appendChild(crearPartidoFutbol(resuelto.semifinales[0], '1.º Grupo A', '2.º Grupo B'));
+        semis.appendChild(crearPartidoFutbol(resuelto.semifinales[1], '1.º Grupo B', '2.º Grupo A'));
+        columnaIzq.appendChild(semis);
+
+        columnaIzq.appendChild(crearEl('h2', 'brk-futbol-titulo brk-futbol-titulo--separada', 'TERCER PUESTO'));
+
+        const tercero = crearEl('div', 'brk-partidos brk-partidos--tercero');
+        tercero.appendChild(crearPartidoFutbol(resuelto.tercerPuesto,
+            'Perdedor SF1', 'Perdedor SF2', 'brk-partido--tercero'));
+        columnaIzq.appendChild(tercero);
+
+        const columnaDer = crearEl('div', 'brk-futbol-col');
+        columnaDer.appendChild(crearEl('h2', 'brk-futbol-titulo', 'FINAL'));
+
+        const final = crearEl('div', 'brk-partidos');
+        final.appendChild(crearPartidoFutbol(resuelto.final, 'Ganador SF1', 'Ganador SF2'));
+        columnaDer.appendChild(final);
+
+        columnaDer.appendChild(crearCampeon(resuelto.campeon, categoria));
+
+        llave.appendChild(columnaIzq);
+        llave.appendChild(columnaDer);
+        contenedor.appendChild(llave);
 
         return contenedor;
     }
 
-    function crearTablaPanel(categoria) {
-        const panel = crearEl('div', 'brk-tabla-panel');
-        panel.appendChild(crearTabla(categoria.columnas, categoria.filas));
-        return panel;
-    }
-
-    function crearTabla(columnas, filas) {
-        const columnasValidas = Array.isArray(columnas) && columnas.length
-            ? columnas
-            : [{ clave: 'equipo', titulo: 'EQUIPO', alineacion: 'izq' }];
-        const filasValidas = Array.isArray(filas) ? filas : [];
-
-        const tabla = crearEl('table', 'brk-tabla');
+    function crearTablaGrupo(filas) {
+        const tabla = crearEl('table', 'brk-tabla brk-tabla--grupo');
         const thead = document.createElement('thead');
         const filaHead = document.createElement('tr');
 
-        columnasValidas.forEach(function (columna) {
+        [
+            { titulo: 'POS', clase: 'brk-col-pos' },
+            { titulo: 'EQUIPO', clase: 'brk-col-equipo brk-izq' },
+            { titulo: 'PJ', clase: 'brk-col-pj' },
+            { titulo: 'DG', clase: 'brk-col-dg' },
+            { titulo: 'PTS', clase: 'brk-col-pts' }
+        ].forEach(function (columna) {
             const th = document.createElement('th');
-            th.textContent = columna.titulo || columna.clave;
-            th.className = 'brk-col-' + columna.clave;
-            if (columna.alineacion === 'izq') th.classList.add('brk-izq');
+            th.textContent = columna.titulo;
+            th.className = columna.clase;
             filaHead.appendChild(th);
         });
 
@@ -452,40 +507,252 @@
 
         const tbody = document.createElement('tbody');
 
-        filasValidas.forEach(function (fila, indice) {
+        filas.forEach(function (fila, indice) {
             const tr = document.createElement('tr');
 
-            if (indice < 3) tr.classList.add('brk-fila-' + (indice + 1));
+            if (indice < 2) tr.classList.add('brk-clasifica');
 
-            columnasValidas.forEach(function (columna) {
+            const celdas = [
+                String(indice + 1),
+                Logica.nombreEquipo(documento, fila.equipo) || 'Por definir',
+                String(fila.pj),
+                (fila.dg > 0 ? '+' : '') + fila.dg,
+                String(fila.pts)
+            ];
+
+            celdas.forEach(function (valor, posicion) {
                 const td = document.createElement('td');
-                let valor = fila ? fila[columna.clave] : '';
-
-                if (columna.clave === 'pos' && (valor === undefined || valor === null || valor === '')) {
-                    valor = indice + 1;
-                }
-
-                td.textContent = valor === undefined || valor === null ? '—' : String(valor);
-                td.className = 'brk-col-' + columna.clave;
-                if (columna.alineacion === 'izq') td.classList.add('brk-izq');
-                if (columna.clave === 'pos') td.classList.add('brk-pos-celda');
-                if (columna.destacar) td.classList.add('brk-celda-destacada');
+                td.textContent = valor;
+                if (posicion === 1) td.classList.add('brk-izq');
+                if (posicion === 0) td.classList.add('brk-pos-celda');
+                if (posicion === 4) td.classList.add('brk-celda-destacada');
                 tr.appendChild(td);
             });
 
             tbody.appendChild(tr);
         });
 
-        tabla.appendChild(tbody);
-
-        if (!filasValidas.length) {
-            const aviso = crearEl('p', 'brk-sin-partidos', 'Sin datos cargados');
-            const contenedor = crearEl('div', 'brk-tabla-vacia');
-            contenedor.appendChild(aviso);
-            return contenedor;
+        if (!filas.length) {
+            const tr = document.createElement('tr');
+            const td = document.createElement('td');
+            td.colSpan = 5;
+            td.className = 'brk-tabla-vacia-celda';
+            td.textContent = 'Sin equipos cargados';
+            tr.appendChild(td);
+            tbody.appendChild(tr);
         }
 
+        tabla.appendChild(tbody);
         return tabla;
+    }
+
+    function crearPartidoFutbol(partido, pistaA, pistaB, claseExtra) {
+        const datos = partido || {};
+        const estado = datos.estado || 'pendiente';
+        const articulo = crearEl('article', 'brk-partido brk-partido--' + estado +
+            (claseExtra ? ' ' + claseExtra : ''));
+
+        if (estado === 'en_curso') {
+            articulo.appendChild(crearEl('span', 'brk-en-vivo', 'EN VIVO'));
+        }
+
+        const ganador = Logica.ganadorFutbol(datos);
+        const ganaA = !!ganador && ganador === datos.equipoA;
+        const ganaB = !!ganador && ganador === datos.equipoB;
+
+        articulo.appendChild(crearJugadorFutbol(datos.equipoA, datos.golesA, ganaA, pistaA));
+        articulo.appendChild(crearJugadorFutbol(datos.equipoB, datos.golesB, ganaB, pistaB));
+
+        if (datos.penalesA !== null || datos.penalesB !== null) {
+            articulo.appendChild(crearEl('p', 'brk-partido-penales',
+                'Penales ' + (datos.penalesA === null ? '—' : datos.penalesA) +
+                ' - ' + (datos.penalesB === null ? '—' : datos.penalesB)));
+        }
+
+        return articulo;
+    }
+
+    function crearJugadorFutbol(idEquipo, goles, ganador, pista) {
+        const fila = crearEl('div', 'brk-jugador');
+        const equipo = Logica.equipo(documento, idEquipo);
+
+        if (ganador) fila.classList.add('brk-ganador');
+        if (!equipo) fila.classList.add('brk-vacio');
+
+        const info = crearEl('span', 'brk-jugador-info');
+        info.appendChild(crearEl('span', 'brk-jugador-nombre',
+            equipo ? equipo.nombre : (pista || 'Por definir')));
+
+        if (equipo && equipo.institucion) {
+            info.appendChild(crearEl('span', 'brk-jugador-inst', equipo.institucion));
+        }
+
+        fila.appendChild(info);
+        fila.appendChild(crearEl('span', 'brk-jugador-puntos',
+            goles === null ? '—' : String(goles)));
+
+        return fila;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Sigue Líneas: tabla de tiempos                                     */
+    /* ------------------------------------------------------------------ */
+
+    function crearTablaTiempos(categoria) {
+        const filas = Logica.tablaTiempos(categoria);
+        const panel = crearEl('div', 'brk-tabla-panel');
+        const tabla = crearEl('table', 'brk-tabla brk-tabla--tiempos');
+
+        const thead = document.createElement('thead');
+        const filaHead = document.createElement('tr');
+
+        [
+            { titulo: 'POS' },
+            { titulo: 'ROBOT', izquierda: true },
+            { titulo: 'INSTITUCIÓN', izquierda: true },
+            { titulo: 'PASADA 1' },
+            { titulo: 'PASADA 2' },
+            { titulo: 'PASADA 3' },
+            { titulo: 'MEJOR TIEMPO', destacada: true }
+        ].forEach(function (columna) {
+            const th = document.createElement('th');
+            th.textContent = columna.titulo;
+            if (columna.izquierda) th.classList.add('brk-izq');
+            if (columna.destacada) th.classList.add('brk-celda-destacada');
+            filaHead.appendChild(th);
+        });
+
+        thead.appendChild(filaHead);
+        tabla.appendChild(thead);
+
+        const tbody = document.createElement('tbody');
+
+        filas.forEach(function (fila, indice) {
+            const tr = document.createElement('tr');
+            const equipo = Logica.equipo(documento, fila.equipo);
+
+            if (indice < 3 && fila.mejor !== null) tr.classList.add('brk-fila-' + (indice + 1));
+
+            const celdas = [
+                { valor: String(indice + 1), clase: 'brk-pos-celda' },
+                { valor: equipo ? equipo.nombre : 'Por definir', clase: 'brk-izq brk-celda-robot' },
+                { valor: equipo && equipo.institucion ? equipo.institucion : '—', clase: 'brk-izq brk-celda-inst' },
+                { valor: Logica.formatearTiempo(fila.tiempos[0]), clase: 'brk-celda-tiempo' },
+                { valor: Logica.formatearTiempo(fila.tiempos[1]), clase: 'brk-celda-tiempo' },
+                { valor: Logica.formatearTiempo(fila.tiempos[2]), clase: 'brk-celda-tiempo' },
+                { valor: Logica.formatearTiempo(fila.mejor), clase: 'brk-celda-tiempo brk-celda-destacada' }
+            ];
+
+            celdas.forEach(function (celda) {
+                const td = document.createElement('td');
+                td.textContent = celda.valor;
+                if (celda.clase) td.className = celda.clase;
+                tr.appendChild(td);
+            });
+
+            tbody.appendChild(tr);
+        });
+
+        if (!filas.length) {
+            const tr = document.createElement('tr');
+            const td = document.createElement('td');
+            td.colSpan = 7;
+            td.className = 'brk-tabla-vacia-celda';
+            td.textContent = 'Sin tiempos cargados';
+            tr.appendChild(td);
+            tbody.appendChild(tr);
+        }
+
+        tabla.appendChild(tbody);
+        panel.appendChild(tabla);
+        return panel;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Resumen del torneo (podios)                                        */
+    /* ------------------------------------------------------------------ */
+
+    function crearResumen(categoria) {
+        const contenedor = crearEl('div', 'brk-resumen');
+
+        const equipos = Logica.listaEquipos(documento);
+        const categoriasConPodio = categorias.filter(function (item) {
+            return item && item.tipo && item.tipo !== 'resumen';
+        });
+
+        const stats = crearEl('div', 'brk-resumen-stats');
+
+        const datosStats = [
+            { valor: String(equipos.length), etiqueta: 'EQUIPOS INSCRIPTOS' },
+            { valor: String(categoriasConPodio.length), etiqueta: 'CATEGORÍAS' },
+            { valor: documento.sede || 'Nave Cultural', etiqueta: 'SEDE DEL TORNEO' }
+        ];
+
+        datosStats.forEach(function (dato) {
+            const caja = crearEl('div', 'brk-stat');
+            caja.appendChild(crearEl('span', 'brk-stat-valor', dato.valor));
+            caja.appendChild(crearEl('span', 'brk-stat-etiqueta', dato.etiqueta));
+            stats.appendChild(caja);
+        });
+
+        contenedor.appendChild(stats);
+
+        const grilla = crearEl('div', 'brk-resumen-grilla');
+
+        categoriasConPodio.forEach(function (item) {
+            grilla.appendChild(crearTarjetaPodio(item));
+        });
+
+        contenedor.appendChild(grilla);
+
+        if (!categoriasConPodio.length) {
+            contenedor.appendChild(crearAviso('Sin categorías para resumir'));
+        }
+
+        return contenedor;
+    }
+
+    function crearTarjetaPodio(categoria) {
+        const podio = Logica.podioCategoria(categoria);
+        const tarjeta = crearEl('article', 'brk-podio-card');
+
+        const color = normalizarColor(categoria.acento);
+        tarjeta.style.setProperty('--brk-card-acento', color.hex);
+        tarjeta.style.setProperty('--brk-card-acento-texto', textoAcento(color.hex));
+
+        tarjeta.appendChild(crearEl('h2', 'brk-podio-titulo', categoria.titulo || 'CATEGORÍA'));
+
+        const medallas = [
+            { puesto: '1', etiqueta: 'CAMPEÓN', equipo: podio.campeon, clase: 'oro' },
+            { puesto: '2', etiqueta: 'SUBCAMPEÓN', equipo: podio.subcampeon, clase: 'plata' },
+            { puesto: '3', etiqueta: 'TERCER PUESTO', equipo: podio.tercero, clase: 'bronce' }
+        ];
+
+        medallas.forEach(function (medalla) {
+            const equipo = Logica.equipo(documento, medalla.equipo);
+            const fila = crearEl('div', 'brk-medalla brk-medalla--' + medalla.clase +
+                (equipo ? '' : ' brk-medalla--vacia'));
+
+            fila.appendChild(crearEl('span', 'brk-medalla-puesto', medalla.puesto));
+
+            const info = crearEl('span', 'brk-medalla-info');
+            info.appendChild(crearEl('span', 'brk-medalla-etiqueta', medalla.etiqueta));
+            info.appendChild(crearEl('span', 'brk-medalla-equipo',
+                equipo ? equipo.nombre : 'Por definir'));
+
+            if (equipo && equipo.institucion) {
+                info.appendChild(crearEl('span', 'brk-medalla-inst', equipo.institucion));
+            }
+
+            fila.appendChild(info);
+            tarjeta.appendChild(fila);
+        });
+
+        return tarjeta;
+    }
+
+    function crearAviso(texto) {
+        return crearEl('p', 'brk-sin-partidos', texto);
     }
 
     /* ------------------------------------------------------------------ */
@@ -540,9 +807,36 @@
         const [r, g, b] = color.rgb;
 
         appEl.style.setProperty('--brk-acento', color.hex);
+        appEl.style.setProperty('--brk-acento-texto', textoAcento(color.hex));
         appEl.style.setProperty('--brk-acento-suave', 'rgba(' + r + ', ' + g + ', ' + b + ', 0.14)');
         appEl.style.setProperty('--brk-acento-medio', 'rgba(' + r + ', ' + g + ', ' + b + ', 0.45)');
         appEl.style.setProperty('--brk-acento-brillo', 'rgba(' + r + ', ' + g + ', ' + b + ', 0.35)');
+    }
+
+    /**
+     * En tema claro el neón puro no se lee sobre blanco: se oscurece el
+     * mismo tono para los textos, manteniendo el color vivo en bordes y brillos.
+     */
+    function textoAcento(color) {
+        const normalizado = normalizarColor(color);
+
+        if (document.documentElement.getAttribute('data-theme') !== 'light') {
+            return normalizado.hex;
+        }
+
+        const oscuro = normalizado.rgb.map(function (valor) {
+            return Math.round(valor * 0.45);
+        });
+
+        return rgbAHex(oscuro);
+    }
+
+    function rgbAHex(rgb) {
+        return '#' + rgb.map(function (valor) {
+            return Math.max(0, Math.min(255, Math.round(valor)))
+                .toString(16)
+                .padStart(2, '0');
+        }).join('');
     }
 
     function iniciarCicloCompleto() {
@@ -695,12 +989,6 @@
 
     function clonar(valor) {
         return JSON.parse(JSON.stringify(valor === undefined ? null : valor));
-    }
-
-    function numeroONull(valor) {
-        if (valor === null || valor === undefined || valor === '') return null;
-        const numero = Number(valor);
-        return Number.isFinite(numero) ? numero : null;
     }
 
     function normalizarColor(color) {

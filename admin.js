@@ -9,6 +9,8 @@
 (function () {
     'use strict';
 
+    const Logica = window.BracketsLogica;
+
     let overrides = {};
     let firmaServidor = null;
     let sesion = null;
@@ -477,11 +479,29 @@
     /* Llaves y posiciones de la segunda TV                               */
     /* ------------------------------------------------------------------ */
 
+    const CATEGORIAS_EQUIPO = [
+        { clave: 'mini-sumo', etiqueta: 'Mini Sumo' },
+        { clave: 'sumo', etiqueta: 'Sumo' },
+        { clave: 'futbol', etiqueta: 'Fútbol de Robots' },
+        { clave: 'sigue-lineas', etiqueta: 'Sigue Líneas' }
+    ];
+
+    const ESTADOS_PARTIDO = [
+        ['pendiente', 'Pendiente'],
+        ['en_curso', 'En vivo'],
+        ['finalizado', 'Finalizado']
+    ];
+
     async function cargarLlavesPanel() {
         const info = document.getElementById('llavesInfo');
 
         if (!window.HorariosSync || typeof HorariosSync.iniciarLlaves !== 'function') {
             if (info) info.textContent = 'No se cargó el módulo de llaves. Actualizá la página.';
+            return;
+        }
+
+        if (!Logica) {
+            if (info) info.textContent = 'No se cargó brackets-logica.js. Actualizá la página.';
             return;
         }
 
@@ -553,6 +573,8 @@
     function usarDatosEstaticos() {
         llavesTrabajo = normalizarDocumento(documentoEstatico());
         llavesFirmaAplicada = null;
+        llavesActualizadoEn = null;
+        llavesActualizadoPor = null;
         llavesCambios = false;
         llavesRemotoPendiente = null;
         llavesIndiceSeleccionado = 0;
@@ -630,6 +652,8 @@
 
         const categoria = categoriaLlavesActual();
 
+        editor.appendChild(crearEditorEquipos());
+
         if (!categoria) {
             editor.appendChild(crear('p', 'admin-muted', 'No hay pantallas cargadas.'));
             return;
@@ -638,15 +662,130 @@
         editor.appendChild(crearFichaLlaves(categoria));
 
         if (categoria.tipo === 'llaves') {
-            editor.appendChild(crearEditorRondasLlaves(categoria));
-            editor.appendChild(crearEditorCampeonLlaves(categoria));
-        } else if (categoria.tipo === 'grupos') {
-            editor.appendChild(crearEditorGruposLlaves(categoria));
-            editor.appendChild(crearEditorCrucesLlaves(categoria));
+            editor.appendChild(crearEditorLlaves(categoria));
+            editor.appendChild(crearEditorTercerPuesto(categoria));
+        } else if (categoria.tipo === 'futbol') {
+            editor.appendChild(crearEditorGruposFutbol(categoria));
+            editor.appendChild(crearEditorPlayoffsFutbol(categoria));
+        } else if (categoria.tipo === 'tiempos') {
+            editor.appendChild(crearEditorTiempos(categoria));
         } else {
-            editor.appendChild(crearEditorTablaLlaves(categoria));
+            editor.appendChild(crearEditorResumen(categoria));
         }
     }
+
+    /* ---------- Lista maestra de equipos ---------- */
+
+    function crearEditorEquipos() {
+        const equipos = llavesTrabajo && Array.isArray(llavesTrabajo.equipos)
+            ? llavesTrabajo.equipos
+            : [];
+
+        const bloque = crearBloqueLlaves('Equipos inscriptos (' + equipos.length + ')');
+        agregarAccionBloque(bloque, '+ Equipo', 'add-equipo');
+
+        bloque.appendChild(crear('p', 'admin-llaves-hint',
+            'Esta es la lista maestra. Los cruces y los tiempos se eligen desde acá, ' +
+            'así que no hace falta escribir nombres a mano. Si cambiás un nombre, ' +
+            'se actualiza en todas las pantallas.'));
+
+        const wrap = crear('div', 'admin-llaves-tabla-wrap');
+        const tabla = document.createElement('table');
+        tabla.className = 'admin-llaves-tabla admin-equipos-tabla';
+
+        const thead = document.createElement('thead');
+        const filaHead = document.createElement('tr');
+
+        ['EQUIPO / ROBOT', 'INSTITUCIÓN', 'CATEGORÍA', ''].forEach(function (titulo) {
+            filaHead.appendChild(crear('th', '', titulo));
+        });
+
+        thead.appendChild(filaHead);
+        tabla.appendChild(thead);
+
+        const tbody = document.createElement('tbody');
+
+        if (!equipos.length) {
+            const tr = document.createElement('tr');
+            const td = document.createElement('td');
+            td.colSpan = 4;
+            td.className = 'admin-llaves-tabla-vacia';
+            td.textContent = 'Todavía no hay equipos. Usá "+ Equipo" para agregar el primero.';
+            tr.appendChild(td);
+            tbody.appendChild(tr);
+        }
+
+        equipos.forEach(function (equipo) {
+            const tr = document.createElement('tr');
+
+            tr.appendChild(celdaInputEquipo(equipo, 'nombre', 'Nombre del robot o equipo'));
+            tr.appendChild(celdaInputEquipo(equipo, 'institucion', 'Institución'));
+
+            const tdCategoria = document.createElement('td');
+            tdCategoria.appendChild(crearSelectCategoriaEquipo(equipo));
+            tr.appendChild(tdCategoria);
+
+            const tdAccion = document.createElement('td');
+            tdAccion.className = 'admin-llaves-tabla-accion';
+            tdAccion.appendChild(crearBotonLlaves(
+                '×',
+                'ghost admin-llaves-quitar',
+                'del-equipo',
+                { equipo: equipo.id }
+            ));
+            tr.appendChild(tdAccion);
+
+            tbody.appendChild(tr);
+        });
+
+        tabla.appendChild(tbody);
+        wrap.appendChild(tabla);
+        bloque.appendChild(wrap);
+
+        const conteo = CATEGORIAS_EQUIPO.map(function (categoria) {
+            const cantidad = equipos.filter(function (equipo) {
+                return equipo.categoria === categoria.clave;
+            }).length;
+            return cantidad + ' ' + categoria.etiqueta;
+        }).join(' · ');
+
+        bloque.appendChild(crear('p', 'admin-llaves-conteo', conteo));
+
+        return bloque;
+    }
+
+    function celdaInputEquipo(equipo, campo, placeholder) {
+        const td = document.createElement('td');
+        td.appendChild(crearInputLlaves(
+            equipo[campo] || '',
+            { ambito: 'equipo', equipo: equipo.id, campo: campo },
+            { clase: 'admin-llaves-celda', placeholder: placeholder }
+        ));
+        return td;
+    }
+
+    function crearSelectCategoriaEquipo(equipo) {
+        const select = document.createElement('select');
+        select.className = 'admin-llaves-celda';
+
+        CATEGORIAS_EQUIPO.forEach(function (categoria) {
+            const opcion = document.createElement('option');
+            opcion.value = categoria.clave;
+            opcion.textContent = categoria.etiqueta;
+            select.appendChild(opcion);
+        });
+
+        select.value = claveCategoriaValida(equipo.categoria);
+        asignarDatasetLlaves(select, {
+            ambito: 'equipo',
+            equipo: equipo.id,
+            campo: 'categoria'
+        });
+
+        return select;
+    }
+
+    /* ---------- Ficha de la pantalla ---------- */
 
     function crearFichaLlaves(categoria) {
         const ficha = crear('div', 'admin-llaves-ficha');
@@ -672,18 +811,33 @@
 
         grid.appendChild(crearCampoLlaves('Nota al pie', crearInputLlaves(
             categoria.nota, { ambito: 'comun', campo: 'nota' },
-            { placeholder: 'Ej.: Eliminación directa · combates al mejor de 5' }
+            { placeholder: 'Ej.: Eliminación directa · mejor de 3 asaltos' }
         ), 'ancho'));
 
         ficha.appendChild(grid);
-        ficha.appendChild(crear('span', 'admin-tag admin-llaves-tipo', 'Tipo: ' + etiquetaTipoLlaves(categoria.tipo)));
 
+        const etiquetas = crear('div', 'admin-llaves-etiquetas');
+        etiquetas.appendChild(crear('span', 'admin-tag admin-llaves-tipo',
+            'Pantalla: ' + etiquetaTipoLlaves(categoria.tipo)));
+
+        if (categoria.equipos) {
+            etiquetas.appendChild(crear('span', 'admin-tag',
+                'Equipos: ' + etiquetaCategoriaEquipo(categoria.equipos)));
+        }
+
+        ficha.appendChild(etiquetas);
         return ficha;
     }
 
-    function crearEditorRondasLlaves(categoria) {
-        const bloque = crearBloqueLlaves('Rondas y partidos', '+ Ronda', 'add-ronda');
+    /* ---------- Mini Sumo / Sumo ---------- */
+
+    function crearEditorLlaves(categoria) {
+        const bloque = crearBloqueLlaves('Rondas y combates');
+        agregarAccionBloque(bloque, 'Actualizar vista', 'refrescar-editor');
+        agregarAccionBloque(bloque, '+ Ronda', 'add-ronda');
+
         const rondas = Array.isArray(categoria.rondas) ? categoria.rondas : [];
+        const resuelto = Logica.resolverLlaves(categoria);
 
         if (!rondas.length) {
             bloque.appendChild(crear('p', 'admin-muted', 'No hay rondas cargadas.'));
@@ -700,7 +854,10 @@
             ));
 
             cabecera.appendChild(crearBotonLlaves(
-                'Quitar ronda', 'ghost admin-llaves-quitar', 'del-ronda', { ronda: String(indiceRonda) }
+                'Quitar ronda',
+                'ghost admin-llaves-quitar',
+                'del-ronda',
+                { ronda: String(indiceRonda) }
             ));
 
             caja.appendChild(cabecera);
@@ -709,88 +866,281 @@
             const partidos = Array.isArray(ronda.partidos) ? ronda.partidos : [];
 
             if (!partidos.length) {
-                lista.appendChild(crear('p', 'admin-muted', 'Sin partidos en esta ronda.'));
+                lista.appendChild(crear('p', 'admin-muted', 'Sin combates en esta ronda.'));
             }
 
             partidos.forEach(function (partido, indicePartido) {
-                lista.appendChild(crearEditorPartidoLlaves(
+                const vista = resuelto.rondas[indiceRonda]
+                    ? resuelto.rondas[indiceRonda].partidos[indicePartido]
+                    : null;
+
+                lista.appendChild(crearEditorCombate(
                     partido,
-                    { ambito: 'partido', ronda: String(indiceRonda), partido: String(indicePartido) },
-                    'del-partido'
+                    {
+                        ambito: 'partido',
+                        ronda: String(indiceRonda),
+                        partido: String(indicePartido)
+                    },
+                    categoria,
+                    'del-partido',
+                    vista
                 ));
             });
 
             lista.appendChild(crearBotonLlaves(
-                '+ Partido', 'ghost', 'add-partido', { ronda: String(indiceRonda) }
+                '+ Combate',
+                'ghost',
+                'add-partido',
+                { ronda: String(indiceRonda) }
             ));
 
             caja.appendChild(lista);
             bloque.appendChild(caja);
         });
 
+        bloque.appendChild(crear('p', 'admin-llaves-hint',
+            'Cargá los Yuhkoh de cada combate. El ganador pasa solo a la ronda ' +
+            'siguiente y el podio se calcula automáticamente.'));
+
         return bloque;
     }
 
-    function crearEditorCampeonLlaves(categoria) {
-        const bloque = crearBloqueLlaves('Campeón', null);
-        const campeon = categoria.campeon || {};
-        const grid = crear('div', 'admin-llaves-grid');
+    function crearEditorTercerPuesto(categoria) {
+        const bloque = crearBloqueLlaves('Tercer puesto y podio');
+        agregarAccionBloque(bloque, 'Actualizar vista', 'refrescar-editor');
 
-        grid.appendChild(crearCampoLlaves('Equipo campeón', crearInputLlaves(
-            campeon.equipo, { ambito: 'campeon', campo: 'equipo' }, { placeholder: 'Por definir' }
-        )));
+        const resuelto = Logica.resolverLlaves(categoria);
 
-        grid.appendChild(crearCampoLlaves('Detalle', crearInputLlaves(
-            campeon.detalle, { ambito: 'campeon', campo: 'detalle' }, { placeholder: 'Ej.: Mini Sumo · 2026' }
-        )));
+        bloque.appendChild(crearEditorCombate(
+            categoria.tercerPuesto,
+            { ambito: 'tercero', tipo: 'tercero' },
+            categoria,
+            null,
+            resuelto.tercero
+        ));
 
-        bloque.appendChild(grid);
+        bloque.appendChild(crear('p', 'admin-llaves-hint admin-llaves-podio-hint', textoPodio(categoria)));
+
         return bloque;
     }
 
-    function crearEditorPartidoLlaves(partido, datosBase, accionQuitar) {
+    function crearEditorCombate(partido, contexto, categoria, accionQuitar, vista) {
         const datos = partido || {};
         const caja = crear('div', 'admin-llaves-partido');
         const grid = crear('div', 'admin-llaves-partido-campos');
 
-        grid.appendChild(crearCampoLlaves('Equipo A', crearInputLlaves(
-            datos.equipoA, Object.assign({}, datosBase, { campo: 'equipoA' }), { placeholder: 'Por definir' }
+        grid.appendChild(crearCampoLlaves('Equipo A', crearSelectEquipos(
+            categoria.equipos,
+            datos.equipoA,
+            Object.assign({}, contexto, { campo: 'equipoA' })
+        ), 'ancho-equipo'));
+
+        grid.appendChild(crearCampoLlaves('Yuhkoh A', crearSelectNumero(
+            datos.puntosA,
+            [0, 1, 2],
+            Object.assign({}, contexto, { campo: 'puntosA' })
         )));
 
-        grid.appendChild(crearCampoLlaves('Puntos A', crearInputLlaves(
-            datos.puntosA, Object.assign({}, datosBase, { campo: 'puntosA' }),
-            { tipo: 'number', min: '0', step: '1' }
-        )));
+        grid.appendChild(crearCampoLlaves('Equipo B', crearSelectEquipos(
+            categoria.equipos,
+            datos.equipoB,
+            Object.assign({}, contexto, { campo: 'equipoB' })
+        ), 'ancho-equipo'));
 
-        grid.appendChild(crearCampoLlaves('Equipo B', crearInputLlaves(
-            datos.equipoB, Object.assign({}, datosBase, { campo: 'equipoB' }), { placeholder: 'Por definir' }
-        )));
-
-        grid.appendChild(crearCampoLlaves('Puntos B', crearInputLlaves(
-            datos.puntosB, Object.assign({}, datosBase, { campo: 'puntosB' }),
-            { tipo: 'number', min: '0', step: '1' }
+        grid.appendChild(crearCampoLlaves('Yuhkoh B', crearSelectNumero(
+            datos.puntosB,
+            [0, 1, 2],
+            Object.assign({}, contexto, { campo: 'puntosB' })
         )));
 
         grid.appendChild(crearCampoLlaves('Estado', crearSelectLlaves(
             datos.estado || 'pendiente',
-            [['finalizado', 'Finalizado'], ['en_curso', 'En vivo'], ['pendiente', 'Pendiente']],
-            Object.assign({}, datosBase, { campo: 'estado' })
-        )));
-
-        grid.appendChild(crearCampoLlaves('Ganador', crearSelectLlaves(
-            datos.ganador || '',
-            [['', 'Automático (puntos)'], ['A', 'Equipo A'], ['B', 'Equipo B']],
-            Object.assign({}, datosBase, { campo: 'ganador' })
+            ESTADOS_PARTIDO,
+            Object.assign({}, contexto, { campo: 'estado' })
         )));
 
         caja.appendChild(grid);
-        caja.appendChild(crearBotonLlaves('Quitar', 'ghost admin-llaves-quitar', accionQuitar, datosBase));
+
+        const autoavance = textoAutoavance(datos, vista, contexto);
+        if (autoavance) {
+            const hint = crear('p', 'admin-llaves-autoavance', autoavance);
+
+            if (contexto && contexto.ambito === 'tercero') {
+                hint.dataset.autoavance = 'tercero';
+            } else if (contexto && contexto.ronda !== undefined) {
+                hint.dataset.autoavance = 'ronda';
+                hint.dataset.ronda = String(contexto.ronda);
+                hint.dataset.partido = String(contexto.partido);
+            }
+
+            caja.appendChild(hint);
+        }
+
+        if (accionQuitar) {
+            caja.appendChild(crearBotonLlaves('Quitar', 'ghost admin-llaves-quitar', accionQuitar, contexto));
+        }
 
         return caja;
     }
 
-    function crearEditorGruposLlaves(categoria) {
-        const bloque = crearBloqueLlaves('Grupos', '+ Grupo', 'add-grupo');
+    /**
+     * Explica qué equipos entran solos a un combate (ganadores de la ronda
+     * anterior o perdedores de las semifinales). Así el panel muestra el
+     * mismo cruce que la TV sin que el admin tenga que cargarlo.
+     */
+    function textoAutoavance(datos, vista, contexto) {
+        if (!vista) return '';
+
+        const autoA = !datos.equipoA && vista.equipoA;
+        const autoB = !datos.equipoB && vista.equipoB;
+
+        if (autoA || autoB) {
+            const a = nombreEquipoPodio(vista.equipoA, 'Por definir');
+            const b = nombreEquipoPodio(vista.equipoB, 'Por definir');
+            return 'Se completa solo: ' + a + ' vs ' + b + '.';
+        }
+
+        if (datos.equipoA || datos.equipoB) return '';
+
+        if (contexto && contexto.tipo === 'tercero') {
+            return 'Se completa solo con los perdedores de las semifinales.';
+        }
+
+        if (contexto && Number(contexto.ronda) > 0) {
+            return 'Se completa solo con los ganadores de la ronda anterior.';
+        }
+
+        return '';
+    }
+
+    /**
+     * Vuelve a calcular los avisos de autoavance sin rehacer todo el editor,
+     * para que el cruce se actualice mientras se cargan los Yuhkoh.
+     */
+    function refrescarAutoavance() {
+        const categoria = categoriaLlavesActual();
+
+        if (!categoria || categoria.tipo !== 'llaves') return;
+
+        const resuelto = Logica.resolverLlaves(categoria);
+        const avisos = document.querySelectorAll('#llavesEditor .admin-llaves-autoavance');
+
+        Array.prototype.forEach.call(avisos, function (aviso) {
+            const tipo = aviso.dataset.autoavance;
+            let vista = null;
+            let datos = {};
+            let contexto = null;
+
+            if (tipo === 'tercero') {
+                vista = resuelto.tercero;
+                datos = categoria.tercerPuesto || {};
+                contexto = { tipo: 'tercero' };
+            } else if (tipo === 'ronda') {
+                const indiceRonda = Number(aviso.dataset.ronda);
+                const indicePartido = Number(aviso.dataset.partido);
+                const ronda = resuelto.rondas[indiceRonda];
+                const original = (categoria.rondas || [])[indiceRonda];
+
+                vista = ronda ? ronda.partidos[indicePartido] : null;
+                datos = original && original.partidos ? original.partidos[indicePartido] : {};
+                contexto = { ronda: indiceRonda };
+            }
+
+            if (!vista) return;
+
+            const texto = textoAutoavance(datos || {}, vista, contexto);
+            aviso.textContent = texto;
+            aviso.hidden = !texto;
+        });
+
+        const podio = document.querySelector('#llavesEditor .admin-llaves-podio-hint');
+        if (podio) podio.textContent = textoPodio(categoria);
+    }
+
+    /** Refresca lo que se calcula solo, sin rehacer todo el editor. */
+    function refrescarVistaEditor() {
+        const categoria = categoriaLlavesActual();
+        if (!categoria) return;
+
+        if (categoria.tipo === 'llaves') {
+            refrescarAutoavance();
+        } else if (categoria.tipo === 'futbol') {
+            refrescarVistaFutbol();
+        } else if (categoria.tipo === 'tiempos') {
+            refrescarMejoresTiempos();
+        }
+    }
+
+    function refrescarVistaFutbol() {
+        const categoria = categoriaLlavesActual();
+        if (!categoria || categoria.tipo !== 'futbol') return;
+
+        const resuelto = Logica.resolverFutbol(categoria);
+
+        Array.prototype.forEach.call(
+            document.querySelectorAll('#llavesEditor .admin-llaves-tabla-grupo'),
+            function (contenedor) {
+                const indice = Number(contenedor.dataset.grupo);
+                contenedor.textContent = '';
+                contenedor.appendChild(crearTablaStandings(categoria, indice));
+            }
+        );
+
+        Array.prototype.forEach.call(
+            document.querySelectorAll('#llavesEditor .admin-llaves-playoff-equipos'),
+            function (span) {
+                const clave = span.dataset.clave;
+                const partido = partidoResueltoFutbol(resuelto, clave) || {};
+                const pistas = pistasPlayoff(clave);
+
+                span.textContent = nombreEquipoPodio(partido.equipoA, pistas[0]) +
+                    '  vs  ' + nombreEquipoPodio(partido.equipoB, pistas[1]);
+            }
+        );
+
+        const podio = document.querySelector('#llavesEditor .admin-llaves-podio-hint');
+        if (podio) podio.textContent = textoPodio(categoria);
+    }
+
+    function refrescarMejoresTiempos() {
+        const categoria = categoriaLlavesActual();
+        if (!categoria || categoria.tipo !== 'tiempos') return;
+
+        Array.prototype.forEach.call(
+            document.querySelectorAll('#llavesEditor .admin-llaves-partido--tiempo'),
+            function (caja, indice) {
+                const entrada = (categoria.entradas || [])[indice];
+                const chip = caja.querySelector('.admin-llaves-mejor');
+
+                if (!entrada || !chip) return;
+
+                chip.textContent = 'Mejor: ' + Logica.formatearTiempo(mejorTiempoEntrada(entrada));
+            }
+        );
+    }
+
+    function partidoResueltoFutbol(resuelto, clave) {
+        if (clave === 'final') return resuelto.final;
+        if (clave === 'tercero') return resuelto.tercerPuesto;
+
+        const indice = Number(String(clave).replace('semifinal-', ''));
+        return Number.isFinite(indice) ? resuelto.semifinales[indice] : null;
+    }
+
+    function pistasPlayoff(clave) {
+        if (clave === 'final') return ['Ganador SF1', 'Ganador SF2'];
+        if (clave === 'tercero') return ['Perdedor SF1', 'Perdedor SF2'];
+        if (clave === 'semifinal-1') return ['1.º Grupo B', '2.º Grupo A'];
+        return ['1.º Grupo A', '2.º Grupo B'];
+    }
+
+    /* ---------- Fútbol de robots ---------- */
+
+    function crearEditorGruposFutbol(categoria) {
+        const bloque = crearBloqueLlaves('Fase de grupos');
+        agregarAccionBloque(bloque, 'Actualizar tablas', 'refrescar-editor');
+        agregarAccionBloque(bloque, '+ Grupo', 'add-grupo');
+
         const grupos = Array.isArray(categoria.grupos) ? categoria.grupos : [];
 
         if (!grupos.length) {
@@ -798,202 +1148,514 @@
         }
 
         grupos.forEach(function (grupo, indiceGrupo) {
-            const caja = crear('div', 'admin-llaves-grupo');
-            const cabecera = crear('div', 'admin-llaves-ronda-head');
-
-            cabecera.appendChild(crearInputLlaves(
-                grupo.nombre || '',
-                { ambito: 'grupo', grupo: String(indiceGrupo), campo: 'nombre' },
-                { placeholder: 'Nombre del grupo' }
-            ));
-
-            cabecera.appendChild(crearBotonLlaves(
-                'Quitar grupo', 'ghost admin-llaves-quitar', 'del-grupo', { grupo: String(indiceGrupo) }
-            ));
-
-            caja.appendChild(cabecera);
-            caja.appendChild(crearTablaEditableLlaves(
-                categoria.columnas,
-                Array.isArray(grupo.equipos) ? grupo.equipos : [],
-                { ambito: 'grupo-fila', grupo: String(indiceGrupo) },
-                'add-grupo-fila',
-                'del-grupo-fila',
-                '+ Equipo'
-            ));
-
-            bloque.appendChild(caja);
+            bloque.appendChild(crearEditorGrupoFutbol(categoria, grupo, indiceGrupo));
         });
+
+        bloque.appendChild(crear('p', 'admin-llaves-hint',
+            'Cada equipo juega al menos dos partidos. Clasifican 1.º y 2.º de ' +
+            'cada grupo. La tabla se calcula con los resultados finalizados.'));
 
         return bloque;
     }
 
-    function crearEditorCrucesLlaves(categoria) {
-        const cruces = categoria.cruces || { titulo: 'CRUCES', partidos: [] };
-        const bloque = crearBloqueLlaves('Cruces eliminatorios', '+ Cruce', 'add-cruce');
+    function crearEditorGrupoFutbol(categoria, grupo, indiceGrupo) {
+        const caja = crear('div', 'admin-llaves-grupo');
+        const cabecera = crear('div', 'admin-llaves-ronda-head');
 
-        bloque.appendChild(crearCampoLlaves('Título de los cruces', crearInputLlaves(
-            cruces.titulo, { ambito: 'cruces', campo: 'titulo' },
-            { placeholder: 'Ej.: SEMIFINALES' }
-        ), 'ancho'));
+        cabecera.appendChild(crearInputLlaves(
+            grupo.nombre || '',
+            { ambito: 'grupo', grupo: String(indiceGrupo), campo: 'nombre' },
+            { placeholder: 'Nombre del grupo', clase: 'admin-llaves-ronda-nombre' }
+        ));
 
-        const lista = crear('div', 'admin-llaves-partidos');
-        const partidos = Array.isArray(cruces.partidos) ? cruces.partidos : [];
+        cabecera.appendChild(crearBotonLlaves(
+            'Quitar grupo',
+            'ghost admin-llaves-quitar',
+            'del-grupo',
+            { grupo: String(indiceGrupo) }
+        ));
 
-        if (!partidos.length) {
-            lista.appendChild(crear('p', 'admin-muted', 'No hay cruces cargados.'));
+        caja.appendChild(cabecera);
+
+        const slots = crear('div', 'admin-llaves-partido admin-llaves-partido--slots');
+        const camposSlots = crear('div', 'admin-llaves-partido-campos');
+
+        const equipos = Array.isArray(grupo.equipos) ? grupo.equipos : [];
+
+        for (let posicion = 0; posicion < 3; posicion += 1) {
+            camposSlots.appendChild(crearCampoLlaves(
+                'Equipo ' + (posicion + 1),
+                crearSelectEquipos('futbol', equipos[posicion], {
+                    ambito: 'grupo-equipo',
+                    grupo: String(indiceGrupo),
+                    slot: String(posicion)
+                }),
+                'ancho-equipo'
+            ));
         }
 
-        partidos.forEach(function (partido, indiceCruce) {
-            lista.appendChild(crearEditorPartidoLlaves(
+        slots.appendChild(camposSlots);
+        caja.appendChild(slots);
+
+        const lista = crear('div', 'admin-llaves-partidos');
+        const partidos = Array.isArray(grupo.partidos) ? grupo.partidos : [];
+
+        if (!partidos.length) {
+            lista.appendChild(crear('p', 'admin-muted', 'Sin partidos en este grupo.'));
+        }
+
+        partidos.forEach(function (partido, indicePartido) {
+            lista.appendChild(crearEditorPartidoFutbol(
                 partido,
-                { ambito: 'cruce', cruce: String(indiceCruce) },
-                'del-cruce'
+                {
+                    ambito: 'grupo-partido',
+                    grupo: String(indiceGrupo),
+                    partido: String(indicePartido)
+                },
+                'del-grupo-partido'
             ));
+        });
+
+        lista.appendChild(crearBotonLlaves(
+            '+ Partido',
+            'ghost',
+            'add-grupo-partido',
+            { grupo: String(indiceGrupo) }
+        ));
+
+        caja.appendChild(lista);
+
+        const tabla = crear('div', 'admin-llaves-tabla-grupo');
+        tabla.dataset.grupo = String(indiceGrupo);
+        tabla.appendChild(crearTablaStandings(categoria, indiceGrupo));
+        caja.appendChild(tabla);
+
+        return caja;
+    }
+
+    /** Tabla de posiciones del grupo, calculada igual que en la TV. */
+    function crearTablaStandings(categoria, indiceGrupo) {
+        const grupo = (categoria.grupos || [])[indiceGrupo] || {};
+        const filas = Logica.tablaGrupo(grupo);
+
+        const tabla = document.createElement('table');
+        tabla.className = 'admin-llaves-standings';
+
+        const thead = document.createElement('thead');
+        const filaHead = document.createElement('tr');
+
+        ['POS', 'EQUIPO', 'PJ', 'DG', 'PTS'].forEach(function (titulo) {
+            filaHead.appendChild(crear('th', '', titulo));
+        });
+
+        thead.appendChild(filaHead);
+        tabla.appendChild(thead);
+
+        const tbody = document.createElement('tbody');
+
+        if (!filas.length) {
+            const tr = document.createElement('tr');
+            const td = crear('td', 'admin-llaves-tabla-vacia', 'Sin equipos en el grupo');
+            td.colSpan = 5;
+            tr.appendChild(td);
+            tbody.appendChild(tr);
+        }
+
+        filas.forEach(function (fila, indice) {
+            const tr = document.createElement('tr');
+            if (indice < 2) tr.className = 'clasifica';
+
+            tr.appendChild(crear('td', 'pos', String(indice + 1)));
+            tr.appendChild(crear('td', 'equipo', nombreEquipoPodio(fila.equipo, 'Por definir')));
+            tr.appendChild(crear('td', '', String(fila.pj)));
+            tr.appendChild(crear('td', '', (fila.dg > 0 ? '+' : '') + fila.dg));
+            tr.appendChild(crear('td', 'pts', String(fila.pts)));
+
+            tbody.appendChild(tr);
+        });
+
+        tabla.appendChild(tbody);
+        return tabla;
+    }
+
+    function crearEditorPartidoFutbol(partido, contexto, accionQuitar) {
+        const datos = partido || {};
+        const caja = crear('div', 'admin-llaves-partido');
+        const grid = crear('div', 'admin-llaves-partido-campos');
+
+        grid.appendChild(crearCampoLlaves('Equipo A', crearSelectEquipos(
+            'futbol', datos.equipoA,
+            Object.assign({}, contexto, { campo: 'equipoA' })
+        ), 'ancho-equipo'));
+
+        grid.appendChild(crearCampoLlaves('Goles A', crearInputNumero(
+            datos.golesA,
+            Object.assign({}, contexto, { campo: 'golesA' })
+        )));
+
+        grid.appendChild(crearCampoLlaves('Equipo B', crearSelectEquipos(
+            'futbol', datos.equipoB,
+            Object.assign({}, contexto, { campo: 'equipoB' })
+        ), 'ancho-equipo'));
+
+        grid.appendChild(crearCampoLlaves('Goles B', crearInputNumero(
+            datos.golesB,
+            Object.assign({}, contexto, { campo: 'golesB' })
+        )));
+
+        grid.appendChild(crearCampoLlaves('Estado', crearSelectLlaves(
+            datos.estado || 'pendiente',
+            ESTADOS_PARTIDO,
+            Object.assign({}, contexto, { campo: 'estado' })
+        )));
+
+        caja.appendChild(grid);
+
+        if (accionQuitar) {
+            caja.appendChild(crearBotonLlaves('Quitar', 'ghost admin-llaves-quitar', accionQuitar, contexto));
+        }
+
+        return caja;
+    }
+
+    function crearEditorPlayoffsFutbol(categoria) {
+        const bloque = crearBloqueLlaves('Eliminatorias');
+        agregarAccionBloque(bloque, 'Actualizar cruces', 'refrescar-editor');
+
+        bloque.appendChild(crear('p', 'admin-llaves-hint',
+            'Los cruces se arman solos con la tabla: 1.º A vs 2.º B y 1.º B vs 2.º A. ' +
+            'Si hay empate, cargá los penales. La final y el tercer puesto también ' +
+            'se completan automáticamente.'));
+
+        const resuelto = Logica.resolverFutbol(categoria);
+
+        const filas = [
+            {
+                etiqueta: 'Semifinal 1',
+                clave: 'semifinal-0',
+                partido: resuelto.semifinales[0],
+                pistas: ['1.º Grupo A', '2.º Grupo B']
+            },
+            {
+                etiqueta: 'Semifinal 2',
+                clave: 'semifinal-1',
+                partido: resuelto.semifinales[1],
+                pistas: ['1.º Grupo B', '2.º Grupo A']
+            },
+            {
+                etiqueta: 'Final',
+                clave: 'final',
+                partido: resuelto.final,
+                pistas: ['Ganador SF1', 'Ganador SF2']
+            },
+            {
+                etiqueta: 'Tercer puesto',
+                clave: 'tercero',
+                partido: resuelto.tercerPuesto,
+                pistas: ['Perdedor SF1', 'Perdedor SF2']
+            }
+        ];
+
+        filas.forEach(function (fila) {
+            bloque.appendChild(crearEditorPlayoff(fila));
+        });
+
+        const podio = Logica.podioCategoria(categoria);
+        bloque.appendChild(crear('p', 'admin-llaves-hint admin-llaves-podio-hint',
+            'Podio actual · 1.º: ' + nombreEquipoPodio(podio.campeon) +
+            ' · 2.º: ' + nombreEquipoPodio(podio.subcampeon) +
+            ' · 3.º: ' + nombreEquipoPodio(podio.tercero)));
+
+        return bloque;
+    }
+
+    function crearEditorPlayoff(fila) {
+        const partido = fila.partido || {};
+        const caja = crear('div', 'admin-llaves-partido admin-llaves-partido--playoff');
+
+        const cabecera = crear('div', 'admin-llaves-playoff-head');
+        cabecera.appendChild(crear('span', 'admin-llaves-playoff-nombre', fila.etiqueta));
+
+        const equipos = crear('span', 'admin-llaves-playoff-equipos',
+            nombreEquipoPodio(partido.equipoA, fila.pistas[0]) + '  vs  ' +
+            nombreEquipoPodio(partido.equipoB, fila.pistas[1]));
+        equipos.dataset.clave = fila.clave;
+        cabecera.appendChild(equipos);
+
+        caja.appendChild(cabecera);
+
+        const grid = crear('div', 'admin-llaves-partido-campos');
+
+        grid.appendChild(crearCampoLlaves('Goles A', crearInputNumero(
+            partido.golesA,
+            { ambito: 'playoff', clave: fila.clave, campo: 'golesA' }
+        )));
+
+        grid.appendChild(crearCampoLlaves('Penales A', crearInputNumero(
+            partido.penalesA,
+            { ambito: 'playoff', clave: fila.clave, campo: 'penalesA' },
+            { placeholder: 'Si empatan' }
+        )));
+
+        grid.appendChild(crearCampoLlaves('Goles B', crearInputNumero(
+            partido.golesB,
+            { ambito: 'playoff', clave: fila.clave, campo: 'golesB' }
+        )));
+
+        grid.appendChild(crearCampoLlaves('Penales B', crearInputNumero(
+            partido.penalesB,
+            { ambito: 'playoff', clave: fila.clave, campo: 'penalesB' },
+            { placeholder: 'Si empatan' }
+        )));
+
+        grid.appendChild(crearCampoLlaves('Estado', crearSelectLlaves(
+            partido.estado || 'pendiente',
+            ESTADOS_PARTIDO,
+            { ambito: 'playoff', clave: fila.clave, campo: 'estado' }
+        )));
+
+        caja.appendChild(grid);
+        return caja;
+    }
+
+    /* ---------- Sigue Líneas ---------- */
+
+    function crearEditorTiempos(categoria) {
+        const bloque = crearBloqueLlaves('Tiempos de pista');
+        agregarAccionBloque(bloque, '+ Robot', 'add-tiempo');
+
+        bloque.appendChild(crear('p', 'admin-llaves-hint',
+            'Cargá tres pasadas por robot en segundos y milésimas. La TV muestra ' +
+            'el formato 12.480 s y ordena sola por el mejor tiempo. Si una pasada ' +
+            'no se corrió, dejala vacía.'));
+
+        const entradas = Array.isArray(categoria.entradas) ? categoria.entradas : [];
+
+        if (!entradas.length) {
+            bloque.appendChild(crear('p', 'admin-muted', 'No hay robots cargados.'));
+        }
+
+        const lista = crear('div', 'admin-llaves-partidos');
+
+        entradas.forEach(function (entrada, indice) {
+            const caja = crear('div', 'admin-llaves-partido admin-llaves-partido--tiempo');
+            const grid = crear('div', 'admin-llaves-partido-campos admin-llaves-tiempo-grid');
+
+            grid.appendChild(crearCampoLlaves('Robot', crearSelectEquipos(
+                'sigue-lineas',
+                entrada.equipo,
+                { ambito: 'tiempo', fila: String(indice), campo: 'equipo' }
+            ), 'ancho-equipo'));
+
+            for (let intento = 0; intento < 3; intento += 1) {
+                grid.appendChild(crearCampoLlaves(
+                    'Pasada ' + (intento + 1),
+                    crearCamposTiempo(entrada.tiempos ? entrada.tiempos[intento] : null, indice, intento)
+                ));
+            }
+
+            caja.appendChild(grid);
+
+            const mejor = mejorTiempoEntrada(entrada);
+            caja.appendChild(crear('span', 'admin-llaves-mejor',
+                'Mejor: ' + Logica.formatearTiempo(mejor)));
+
+            caja.appendChild(crearBotonLlaves(
+                'Quitar',
+                'ghost admin-llaves-quitar',
+                'del-tiempo',
+                { fila: String(indice) }
+            ));
+
+            lista.appendChild(caja);
         });
 
         bloque.appendChild(lista);
         return bloque;
     }
 
-    function crearEditorTablaLlaves(categoria) {
-        const bloque = crearBloqueLlaves('Filas de la tabla', null);
+    function crearCamposTiempo(milisegundos, fila, intento) {
+        const grupo = crear('div', 'admin-tiempo-campos');
+        const partes = Logica.partirTiempo(milisegundos);
 
-        bloque.appendChild(crearTablaEditableLlaves(
-            categoria.columnas,
-            Array.isArray(categoria.filas) ? categoria.filas : [],
-            { ambito: 'tabla' },
-            'add-fila-tabla',
-            'del-fila-tabla',
-            '+ Fila'
-        ));
+        const segundos = document.createElement('input');
+        segundos.type = 'number';
+        segundos.min = '0';
+        segundos.max = '999';
+        segundos.step = '1';
+        segundos.placeholder = 'seg';
+        segundos.className = 'admin-tiempo-seg';
+        segundos.value = partes.segundos === '' ? '' : String(partes.segundos);
+
+        const milesimas = document.createElement('input');
+        milesimas.type = 'text';
+        milesimas.inputMode = 'numeric';
+        milesimas.maxLength = 3;
+        milesimas.placeholder = '000';
+        milesimas.className = 'admin-tiempo-ms';
+        milesimas.value = partes.milesimas === '' ? '' : String(partes.milesimas).padStart(3, '0');
+
+        const dataset = {
+            ambito: 'tiempo-tiempo',
+            fila: String(fila),
+            intento: String(intento)
+        };
+
+        asignarDatasetLlaves(segundos, Object.assign({}, dataset, { campo: 'segundos' }));
+        asignarDatasetLlaves(milesimas, Object.assign({}, dataset, { campo: 'milesimas' }));
+
+        const etiquetaSeg = crear('span', 'admin-tiempo-unidad', 's');
+        const etiquetaMs = crear('span', 'admin-tiempo-unidad', 'ms');
+
+        grupo.appendChild(segundos);
+        grupo.appendChild(etiquetaSeg);
+        grupo.appendChild(milesimas);
+        grupo.appendChild(etiquetaMs);
+
+        return grupo;
+    }
+
+    /* ---------- Resumen ---------- */
+
+    function crearEditorResumen(categoria) {
+        const bloque = crearBloqueLlaves('Podios del torneo');
+        agregarAccionBloque(bloque, 'Actualizar vista', 'refrescar-editor');
+
+        bloque.appendChild(crear('p', 'admin-llaves-hint',
+            'Esta pantalla no se edita: muestra el campeón, el subcampeón y el ' +
+            'tercer puesto de cada categoría. Se actualiza con los resultados ' +
+            'que cargues en las otras pantallas.'));
+
+        const categorias = llavesTrabajo && Array.isArray(llavesTrabajo.categorias)
+            ? llavesTrabajo.categorias
+            : [];
+
+        categorias.forEach(function (otra) {
+            if (!otra || !otra.tipo || otra.tipo === 'resumen') return;
+
+            const podio = Logica.podioCategoria(otra);
+            const fila = crear('div', 'admin-llaves-podio-linea');
+            fila.appendChild(crear('strong', '', otra.titulo || 'Categoría'));
+            fila.appendChild(crear('span', '',
+                '1.º ' + nombreEquipoPodio(podio.campeon) +
+                ' · 2.º ' + nombreEquipoPodio(podio.subcampeon) +
+                ' · 3.º ' + nombreEquipoPodio(podio.tercero)));
+            bloque.appendChild(fila);
+        });
 
         return bloque;
     }
 
-    function crearTablaEditableLlaves(columnas, filas, contexto, accionAgregar, accionQuitar, textoAgregar) {
-        const contenedor = crear('div', 'admin-llaves-tabla-contenedor');
-        const listaColumnas = (Array.isArray(columnas) ? columnas : []).filter(function (columna) {
-            return columna && columna.clave && columna.clave !== 'pos';
-        });
-
-        if (!listaColumnas.length) {
-            listaColumnas.push({ clave: 'equipo', titulo: 'EQUIPO' });
-        }
-
-        const wrap = crear('div', 'admin-llaves-tabla-wrap');
-        const tabla = document.createElement('table');
-        tabla.className = 'admin-llaves-tabla';
-
-        const thead = document.createElement('thead');
-        const filaHead = document.createElement('tr');
-        filaHead.appendChild(crear('th', '', '#'));
-        listaColumnas.forEach(function (columna) {
-            filaHead.appendChild(crear('th', '', columna.titulo || columna.clave));
-        });
-        filaHead.appendChild(crear('th', '', ''));
-        thead.appendChild(filaHead);
-        tabla.appendChild(thead);
-
-        const tbody = document.createElement('tbody');
-        const listaFilas = Array.isArray(filas) ? filas : [];
-
-        if (!listaFilas.length) {
-            const filaVacia = document.createElement('tr');
-            const celda = document.createElement('td');
-            celda.colSpan = listaColumnas.length + 2;
-            celda.className = 'admin-llaves-tabla-vacia';
-            celda.textContent = 'Sin filas cargadas.';
-            filaVacia.appendChild(celda);
-            tbody.appendChild(filaVacia);
-        }
-
-        listaFilas.forEach(function (fila, indiceFila) {
-            const tr = document.createElement('tr');
-            tr.appendChild(crear('td', 'admin-llaves-tabla-num', String(indiceFila + 1)));
-
-            listaColumnas.forEach(function (columna) {
-                const td = document.createElement('td');
-                const valor = fila ? fila[columna.clave] : '';
-
-                td.appendChild(crearInputLlaves(
-                    valor,
-                    Object.assign({}, contexto, { fila: String(indiceFila), campo: columna.clave }),
-                    { clase: 'admin-llaves-celda' }
-                ));
-
-                tr.appendChild(td);
-            });
-
-            const tdAccion = document.createElement('td');
-            tdAccion.className = 'admin-llaves-tabla-accion';
-            tdAccion.appendChild(crearBotonLlaves(
-                '×',
-                'ghost admin-llaves-quitar',
-                accionQuitar,
-                Object.assign({}, contexto, { fila: String(indiceFila) })
-            ));
-
-            tr.appendChild(tdAccion);
-            tbody.appendChild(tr);
-        });
-
-        tabla.appendChild(tbody);
-        wrap.appendChild(tabla);
-        contenedor.appendChild(wrap);
-        contenedor.appendChild(crearBotonLlaves(textoAgregar, 'ghost', accionAgregar, contexto));
-
-        return contenedor;
-    }
+    /* ---------- Entrada de datos ---------- */
 
     function manejarEntradaLlaves(evento) {
         const control = evento.target;
         if (!control || !control.dataset || !control.dataset.ambito) return;
 
-        const categoria = categoriaLlavesActual();
-        if (!categoria) return;
-
-        const campo = control.dataset.campo;
-        if (!campo) return;
-
+        const ambito = control.dataset.ambito;
         const datos = control.dataset;
         const valor = control.value;
 
-        if (datos.ambito === 'comun') {
-            categoria[campo] = valor;
-        } else if (datos.ambito === 'ronda') {
+        if (ambito === 'equipo') {
+            if (!llavesTrabajo || !Array.isArray(llavesTrabajo.equipos)) return;
+
+            const equipo = llavesTrabajo.equipos.find(function (item) {
+                return item.id === datos.equipo;
+            });
+
+            if (!equipo) return;
+
+            if (datos.campo === 'categoria') {
+                equipo.categoria = claveCategoriaValida(valor);
+            } else {
+                equipo[datos.campo] = valor;
+            }
+
+            marcarLlavesCambios();
+            refrescarVistaEditor();
+
+            if (datos.campo === 'categoria' && evento.type === 'change') {
+                renderizarEditorLlaves();
+            }
+
+            return;
+        }
+
+        const categoria = categoriaLlavesActual();
+        if (!categoria) return;
+
+        if (ambito === 'comun') {
+            categoria[datos.campo] = valor;
+        } else if (ambito === 'ronda') {
             const ronda = (categoria.rondas || [])[Number(datos.ronda)];
-            if (ronda) ronda[campo] = valor;
-        } else if (datos.ambito === 'partido') {
+            if (ronda) ronda[datos.campo] = valor;
+        } else if (ambito === 'partido') {
             const ronda = (categoria.rondas || [])[Number(datos.ronda)];
             const partido = ronda && Array.isArray(ronda.partidos)
                 ? ronda.partidos[Number(datos.partido)]
                 : null;
-            if (partido) cambiarCampoPartidoLlaves(partido, campo, valor);
-        } else if (datos.ambito === 'cruce') {
-            const partido = categoria.cruces && Array.isArray(categoria.cruces.partidos)
-                ? categoria.cruces.partidos[Number(datos.cruce)]
-                : null;
-            if (partido) cambiarCampoPartidoLlaves(partido, campo, valor);
-        } else if (datos.ambito === 'cruces') {
-            if (campo === 'titulo' && categoria.cruces) categoria.cruces.titulo = valor;
-        } else if (datos.ambito === 'campeon') {
-            if (!categoria.campeon || typeof categoria.campeon !== 'object') categoria.campeon = {};
-            categoria.campeon[campo] = valor;
-        } else if (datos.ambito === 'grupo') {
+            if (partido) aplicarCampoCombate(partido, datos.campo, valor);
+        } else if (ambito === 'tercero') {
+            if (!categoria.tercerPuesto || typeof categoria.tercerPuesto !== 'object') {
+                categoria.tercerPuesto = combateVacio();
+            }
+            aplicarCampoCombate(categoria.tercerPuesto, datos.campo, valor);
+        } else if (ambito === 'grupo') {
             const grupo = (categoria.grupos || [])[Number(datos.grupo)];
-            if (grupo) grupo[campo] = valor;
-        } else if (datos.ambito === 'grupo-fila') {
+            if (grupo) grupo[datos.campo] = valor;
+        } else if (ambito === 'grupo-equipo') {
             const grupo = (categoria.grupos || [])[Number(datos.grupo)];
-            const fila = grupo && Array.isArray(grupo.equipos)
-                ? grupo.equipos[Number(datos.fila)]
+            if (grupo) {
+                grupo.equipos = Array.isArray(grupo.equipos) ? grupo.equipos : [null, null, null];
+
+                const slot = Number(datos.slot);
+                const id = valor || null;
+
+                grupo.equipos[slot] = id;
+
+                // Un mismo equipo no puede estar dos veces en el grupo.
+                if (id) {
+                    grupo.equipos = grupo.equipos.map(function (actual, posicion) {
+                        return posicion !== slot && actual === id ? null : actual;
+                    });
+                }
+            }
+        } else if (ambito === 'grupo-partido') {
+            const grupo = (categoria.grupos || [])[Number(datos.grupo)];
+            const partido = grupo && Array.isArray(grupo.partidos)
+                ? grupo.partidos[Number(datos.partido)]
                 : null;
-            if (fila) fila[campo] = convertirValorTablaLlaves(campo, valor, fila[campo]);
-        } else if (datos.ambito === 'tabla') {
-            const fila = Array.isArray(categoria.filas) ? categoria.filas[Number(datos.fila)] : null;
-            if (fila) fila[campo] = convertirValorTablaLlaves(campo, valor, fila[campo]);
+            if (partido) aplicarCampoPartidoFutbol(partido, datos.campo, valor);
+        } else if (ambito === 'playoff') {
+            const partido = partidoPlayoff(categoria, datos.clave);
+            if (partido) aplicarCampoPartidoFutbol(partido, datos.campo, valor);
+        } else if (ambito === 'tiempo') {
+            const entrada = (categoria.entradas || [])[Number(datos.fila)];
+            if (entrada) entrada.equipo = valor || null;
+        } else if (ambito === 'tiempo-tiempo') {
+            const entrada = (categoria.entradas || [])[Number(datos.fila)];
+            if (entrada) {
+                const contenedor = control.closest('.admin-tiempo-campos');
+                const segundos = contenedor
+                    ? contenedor.querySelector('[data-campo="segundos"]')
+                    : null;
+                const milesimas = contenedor
+                    ? contenedor.querySelector('[data-campo="milesimas"]')
+                    : null;
+
+                entrada.tiempos = Array.isArray(entrada.tiempos)
+                    ? entrada.tiempos
+                    : [null, null, null];
+
+                entrada.tiempos[Number(datos.intento)] = Logica.unirTiempo(
+                    segundos ? segundos.value : '',
+                    milesimas ? milesimas.value : ''
+                );
+            }
         }
 
         marcarLlavesCambios();
+        refrescarVistaEditor();
     }
 
     function manejarClickLlaves(evento) {
@@ -1001,30 +1663,76 @@
         if (!boton) return;
 
         const categoria = categoriaLlavesActual();
-        if (!categoria) return;
-
         const datos = boton.dataset;
         const accion = datos.accion;
         let cambio = false;
 
-        if (accion === 'add-ronda') {
-            categoria.rondas = categoria.rondas || [];
+        if (accion === 'refrescar-editor') {
+            renderizarEditorLlaves();
+            return;
+        }
+
+        if (accion === 'add-equipo') {
+            if (!llavesTrabajo) return;
+
+            const clave = categoria && categoria.equipos
+                ? claveCategoriaValida(categoria.equipos)
+                : 'mini-sumo';
+
+            llavesTrabajo.equipos = Array.isArray(llavesTrabajo.equipos)
+                ? llavesTrabajo.equipos
+                : [];
+
+            llavesTrabajo.equipos.push({
+                id: crearId('eq'),
+                nombre: 'Nuevo equipo',
+                institucion: '',
+                categoria: clave
+            });
+
+            cambio = true;
+        } else if (accion === 'del-equipo') {
+            if (!llavesTrabajo || !Array.isArray(llavesTrabajo.equipos)) return;
+
+            const id = datos.equipo;
+            const equipo = llavesTrabajo.equipos.find(function (item) {
+                return item.id === id;
+            });
+
+            if (!equipo) return;
+
+            if (!confirm('¿Quitar "' + (equipo.nombre || 'el equipo') +
+                '" de la lista? También se borra de todos los cruces y tiempos.')) {
+                return;
+            }
+
+            llavesTrabajo.equipos = llavesTrabajo.equipos.filter(function (item) {
+                return item.id !== id;
+            });
+
+            limpiarReferenciasEquipo(llavesTrabajo, id);
+            cambio = true;
+        } else if (!categoria) {
+            return;
+        } else if (accion === 'add-ronda') {
+            categoria.rondas = Array.isArray(categoria.rondas) ? categoria.rondas : [];
             categoria.rondas.push({
                 nombre: 'RONDA ' + (categoria.rondas.length + 1),
-                partidos: [partidoVacioLlaves()]
+                partidos: [combateVacio()]
             });
             cambio = true;
         } else if (accion === 'del-ronda') {
             const ronda = (categoria.rondas || [])[Number(datos.ronda)];
-            if (ronda && confirm('¿Quitar la ronda "' + (ronda.nombre || '') + '" y todos sus partidos?')) {
+            if (ronda && confirm('¿Quitar la ronda "' + (ronda.nombre || '') +
+                '" y todos sus combates?')) {
                 categoria.rondas.splice(Number(datos.ronda), 1);
                 cambio = true;
             }
         } else if (accion === 'add-partido') {
             const ronda = (categoria.rondas || [])[Number(datos.ronda)];
             if (ronda) {
-                ronda.partidos = ronda.partidos || [];
-                ronda.partidos.push(partidoVacioLlaves());
+                ronda.partidos = Array.isArray(ronda.partidos) ? ronda.partidos : [];
+                ronda.partidos.push(combateVacio());
                 cambio = true;
             }
         } else if (accion === 'del-partido') {
@@ -1034,10 +1742,11 @@
                 cambio = true;
             }
         } else if (accion === 'add-grupo') {
-            categoria.grupos = categoria.grupos || [];
+            categoria.grupos = Array.isArray(categoria.grupos) ? categoria.grupos : [];
             categoria.grupos.push({
-                nombre: 'GRUPO ' + letraGrupoLlaves(categoria.grupos.length),
-                equipos: [filaVaciaLlaves(categoria.columnas)]
+                nombre: 'GRUPO ' + letraGrupo(categoria.grupos.length),
+                equipos: [null, null, null],
+                partidos: [partidoFutbolVacio()]
             });
             cambio = true;
         } else if (accion === 'del-grupo') {
@@ -1046,41 +1755,29 @@
                 categoria.grupos.splice(Number(datos.grupo), 1);
                 cambio = true;
             }
-        } else if (accion === 'add-grupo-fila') {
+        } else if (accion === 'add-grupo-partido') {
             const grupo = (categoria.grupos || [])[Number(datos.grupo)];
             if (grupo) {
-                grupo.equipos = grupo.equipos || [];
-                grupo.equipos.push(filaVaciaLlaves(categoria.columnas));
+                grupo.partidos = Array.isArray(grupo.partidos) ? grupo.partidos : [];
+                grupo.partidos.push(partidoFutbolVacio());
                 cambio = true;
             }
-        } else if (accion === 'del-grupo-fila') {
+        } else if (accion === 'del-grupo-partido') {
             const grupo = (categoria.grupos || [])[Number(datos.grupo)];
-            if (grupo && Array.isArray(grupo.equipos)) {
-                grupo.equipos.splice(Number(datos.fila), 1);
+            if (grupo && Array.isArray(grupo.partidos)) {
+                grupo.partidos.splice(Number(datos.partido), 1);
                 cambio = true;
             }
-        } else if (accion === 'add-cruce') {
-            if (!categoria.cruces || typeof categoria.cruces !== 'object') {
-                categoria.cruces = { titulo: 'CRUCES', partidos: [] };
-            }
-
-            categoria.cruces.partidos = Array.isArray(categoria.cruces.partidos)
-                ? categoria.cruces.partidos
-                : [];
-            categoria.cruces.partidos.push(partidoVacioLlaves());
+        } else if (accion === 'add-tiempo') {
+            categoria.entradas = Array.isArray(categoria.entradas) ? categoria.entradas : [];
+            categoria.entradas.push({
+                equipo: null,
+                tiempos: [null, null, null]
+            });
             cambio = true;
-        } else if (accion === 'del-cruce') {
-            if (categoria.cruces && Array.isArray(categoria.cruces.partidos)) {
-                categoria.cruces.partidos.splice(Number(datos.cruce), 1);
-                cambio = true;
-            }
-        } else if (accion === 'add-fila-tabla') {
-            categoria.filas = categoria.filas || [];
-            categoria.filas.push(filaVaciaLlaves(categoria.columnas));
-            cambio = true;
-        } else if (accion === 'del-fila-tabla') {
-            if (Array.isArray(categoria.filas)) {
-                categoria.filas.splice(Number(datos.fila), 1);
+        } else if (accion === 'del-tiempo') {
+            if (Array.isArray(categoria.entradas)) {
+                categoria.entradas.splice(Number(datos.fila), 1);
                 cambio = true;
             }
         }
@@ -1124,6 +1821,7 @@
         const inputRotacion = document.getElementById('llavesRotacion');
         const segundos = rotacionNormalizada(inputRotacion ? inputRotacion.value : llavesTrabajo.rotacionSegundos);
         llavesTrabajo.rotacionSegundos = segundos;
+        llavesTrabajo.version = 2;
         if (inputRotacion) inputRotacion.value = String(segundos);
 
         if (!documentoConCategorias(llavesTrabajo)) {
@@ -1148,7 +1846,7 @@
                 sesion && sesion.user ? sesion.user.email : null
             );
 
-            mostrarToast('Llaves publicadas en la 2.ª TV.');
+            mostrarToast('Llaves y resultados publicados en la 2.ª TV.');
         } catch (fallo) {
             console.error('No se pudieron guardar las llaves:', fallo);
             llavesCambios = true;
@@ -1183,8 +1881,9 @@
 
         try {
             const registro = await HorariosSync.obtenerLlaves();
+            const valido = registro && documentoConCategorias(registro.datos);
 
-            if (registro && documentoConCategorias(registro.datos)) {
+            if (valido) {
                 aplicarRegistroLlaves(registro, 'nube');
             } else {
                 const cache = typeof HorariosSync.leerCacheLlaves === 'function'
@@ -1205,7 +1904,9 @@
             }
 
             actualizarInfoLlaves();
-            mostrarToast(registro ? 'Datos recargados desde la nube.' : 'Se recargó la última copia disponible.');
+            mostrarToast(valido
+                ? 'Datos recargados desde la nube.'
+                : 'Se recargó la última copia disponible.');
         } catch (fallo) {
             mostrarToast('No se pudo recargar: ' + (fallo.message || fallo), true);
         } finally {
@@ -1242,7 +1943,7 @@
             partes.push('Último cambio en la 2.ª TV: ' + (marca || llavesActualizadoEn) +
                 (llavesActualizadoPor ? ' · por ' + llavesActualizadoPor : '') + '.');
         } else if (llavesTrabajo && !llavesFirmaAplicada) {
-            partes.push('Se muestran los datos de ejemplo. Guardá una vez para publicarlos en la 2.ª TV.');
+            partes.push('Se muestran los datos locales. Guardá una vez para publicarlos en la 2.ª TV.');
         } else if (llavesTrabajo) {
             partes.push('Todavía no hay datos guardados en la nube.');
         } else {
@@ -1270,7 +1971,7 @@
     }
 
     function documentoConCategorias(datos) {
-        return !!(datos && Array.isArray(datos.categorias) && datos.categorias.length);
+        return !!(Logica && Logica.documentoValido(datos));
     }
 
     function firmaLlaves(datos) {
@@ -1283,7 +1984,12 @@
 
     function documentoEstatico() {
         if (typeof bracketsEvento === 'undefined' || !bracketsEvento) {
-            return { rotacionSegundos: 18, categorias: [] };
+            return {
+                version: 2,
+                rotacionSegundos: 18,
+                equipos: [],
+                categorias: []
+            };
         }
 
         const copia = clonar(bracketsEvento);
@@ -1293,93 +1999,240 @@
 
     function normalizarDocumento(original) {
         const doc = clonar(original || {});
+        doc.version = 2;
         doc.rotacionSegundos = rotacionNormalizada(doc.rotacionSegundos);
+        doc.sede = doc.sede || 'Nave Cultural · Mendoza';
+
+        doc.equipos = (Array.isArray(doc.equipos) ? doc.equipos : [])
+            .filter(function (equipo) {
+                return equipo && equipo.id;
+            })
+            .map(function (equipo) {
+                return {
+                    id: String(equipo.id),
+                    nombre: String(equipo.nombre || 'Equipo'),
+                    institucion: String(equipo.institucion || ''),
+                    categoria: claveCategoriaValida(equipo.categoria)
+                };
+            });
 
         const lista = Array.isArray(doc.categorias) ? doc.categorias : [];
 
         doc.categorias = lista.filter(function (categoria) {
             return categoria && typeof categoria === 'object';
         }).map(function (categoria, indice) {
-            if (!categoria.id) categoria.id = 'pantalla-' + (indice + 1);
-            if (!categoria.titulo) categoria.titulo = 'PANTALLA ' + (indice + 1);
-            if (!categoria.tipo) categoria.tipo = 'tabla';
-            if (!colorValido(categoria.acento)) categoria.acento = '#00ffff';
+            const datos = Object.assign({}, categoria);
 
-            if (categoria.tipo === 'llaves') {
-                const rondas = Array.isArray(categoria.rondas) ? categoria.rondas : [];
+            datos.id = datos.id || 'pantalla-' + (indice + 1);
+            datos.titulo = datos.titulo || 'PANTALLA ' + (indice + 1);
+            datos.corto = datos.corto || datos.titulo;
+            datos.fase = datos.fase || '';
+            datos.nota = datos.nota || '';
+            datos.acento = colorValido(datos.acento) ? datos.acento : '#00ffff';
+            datos.tipo = tipoPantallaValido(datos.tipo);
 
-                categoria.rondas = rondas.map(function (ronda, indiceRonda) {
-                    const datos = ronda && typeof ronda === 'object' ? ronda : {};
-                    datos.nombre = datos.nombre || 'RONDA ' + (indiceRonda + 1);
-                    datos.partidos = Array.isArray(datos.partidos) ? datos.partidos : [];
-                    return datos;
+            if (datos.tipo === 'llaves') {
+                datos.rondas = (Array.isArray(datos.rondas) ? datos.rondas : []).map(function (ronda, indiceRonda) {
+                    const info = ronda && typeof ronda === 'object' ? ronda : {};
+
+                    return {
+                        nombre: info.nombre || 'RONDA ' + (indiceRonda + 1),
+                        partidos: (Array.isArray(info.partidos) ? info.partidos : []).map(normalizarCombate)
+                    };
                 });
 
-                categoria.campeon = categoria.campeon && typeof categoria.campeon === 'object'
-                    ? categoria.campeon
-                    : { equipo: null, detalle: '' };
-            } else if (categoria.tipo === 'grupos') {
-                categoria.columnas = columnasDeCategoria(categoria, 'grupos');
+                datos.tercerPuesto = normalizarCombate(datos.tercerPuesto);
+                datos.equipos = claveCategoriaValida(datos.equipos || 'mini-sumo');
+            } else if (datos.tipo === 'futbol') {
+                datos.equipos = 'futbol';
 
-                const grupos = Array.isArray(categoria.grupos) ? categoria.grupos : [];
-                categoria.grupos = grupos.map(function (grupo, indiceGrupo) {
-                    const datos = grupo && typeof grupo === 'object' ? grupo : {};
-                    datos.nombre = datos.nombre || 'GRUPO ' + letraGrupoLlaves(indiceGrupo);
-                    datos.equipos = Array.isArray(datos.equipos) ? datos.equipos : [];
-                    return datos;
+                datos.grupos = (Array.isArray(datos.grupos) ? datos.grupos : []).map(function (grupo, indiceGrupo) {
+                    const info = grupo && typeof grupo === 'object' ? grupo : {};
+
+                    return {
+                        nombre: info.nombre || 'GRUPO ' + letraGrupo(indiceGrupo),
+                        equipos: (Array.isArray(info.equipos) ? info.equipos : []).slice(0, 3),
+                        partidos: (Array.isArray(info.partidos) ? info.partidos : []).map(normalizarPartidoFutbol)
+                    };
                 });
 
-                if (!categoria.cruces || typeof categoria.cruces !== 'object') {
-                    categoria.cruces = { titulo: 'CRUCES', partidos: [] };
-                }
+                const playoffs = datos.playoffs && typeof datos.playoffs === 'object'
+                    ? datos.playoffs
+                    : {};
 
-                categoria.cruces.titulo = categoria.cruces.titulo || 'CRUCES';
-                categoria.cruces.partidos = Array.isArray(categoria.cruces.partidos)
-                    ? categoria.cruces.partidos
-                    : [];
-            } else {
-                categoria.columnas = columnasDeCategoria(categoria, 'tabla');
-                categoria.filas = Array.isArray(categoria.filas) ? categoria.filas : [];
+                const semis = Array.isArray(playoffs.semifinales) ? playoffs.semifinales : [];
+
+                datos.playoffs = {
+                    semifinales: [
+                        normalizarPartidoFutbol(semis[0]),
+                        normalizarPartidoFutbol(semis[1])
+                    ],
+                    final: normalizarPartidoFutbol(playoffs.final),
+                    tercerPuesto: normalizarPartidoFutbol(playoffs.tercerPuesto)
+                };
+            } else if (datos.tipo === 'tiempos') {
+                datos.equipos = 'sigue-lineas';
+
+                datos.entradas = (Array.isArray(datos.entradas) ? datos.entradas : []).map(function (entrada) {
+                    const info = entrada && typeof entrada === 'object' ? entrada : {};
+                    const tiempos = Array.isArray(info.tiempos) ? info.tiempos : [];
+
+                    return {
+                        equipo: info.equipo || null,
+                        tiempos: [
+                            numeroONull(tiempos[0]),
+                            numeroONull(tiempos[1]),
+                            numeroONull(tiempos[2])
+                        ]
+                    };
+                });
             }
 
-            return categoria;
+            return datos;
         });
 
         return doc;
     }
 
-    function columnasDeCategoria(categoria, tipo) {
-        if (Array.isArray(categoria.columnas) && categoria.columnas.length) {
-            return categoria.columnas;
+    function normalizarCombate(partido) {
+        const datos = partido && typeof partido === 'object' ? partido : {};
+
+        return {
+            equipoA: datos.equipoA || null,
+            equipoB: datos.equipoB || null,
+            puntosA: numeroONull(datos.puntosA),
+            puntosB: numeroONull(datos.puntosB),
+            estado: estadoValido(datos.estado)
+        };
+    }
+
+    function normalizarPartidoFutbol(partido) {
+        const datos = partido && typeof partido === 'object' ? partido : {};
+
+        return {
+            equipoA: datos.equipoA || null,
+            equipoB: datos.equipoB || null,
+            golesA: numeroONull(datos.golesA),
+            golesB: numeroONull(datos.golesB),
+            penalesA: numeroONull(datos.penalesA),
+            penalesB: numeroONull(datos.penalesB),
+            estado: estadoValido(datos.estado)
+        };
+    }
+
+    function aplicarCampoCombate(partido, campo, valor) {
+        if (campo === 'equipoA' || campo === 'equipoB') {
+            partido[campo] = valor || null;
+            return;
         }
 
-        const estaticas = (typeof bracketsEvento !== 'undefined' && bracketsEvento &&
-            Array.isArray(bracketsEvento.categorias)) ? bracketsEvento.categorias : [];
+        if (campo === 'puntosA' || campo === 'puntosB') {
+            partido[campo] = valor === '' ? null : numeroONull(valor);
+            return;
+        }
 
-        const encontrada = estaticas.find(function (posible) {
-            return posible && ((categoria.id && posible.id === categoria.id) ||
-                (categoria.titulo && posible.titulo === categoria.titulo));
+        if (campo === 'estado') {
+            partido.estado = estadoValido(valor);
+            return;
+        }
+
+        partido[campo] = valor;
+    }
+
+    function aplicarCampoPartidoFutbol(partido, campo, valor) {
+        if (campo === 'equipoA' || campo === 'equipoB') {
+            partido[campo] = valor || null;
+            return;
+        }
+
+        if (campo === 'estado') {
+            partido.estado = estadoValido(valor);
+            return;
+        }
+
+        partido[campo] = valor === '' ? null : numeroONull(valor);
+    }
+
+    function partidoPlayoff(categoria, clave) {
+        const playoffs = categoria && categoria.playoffs ? categoria.playoffs : null;
+        if (!playoffs) return null;
+
+        if (clave === 'final') return playoffs.final || null;
+        if (clave === 'tercero') return playoffs.tercerPuesto || null;
+
+        const indice = Number(String(clave).replace('semifinal-', ''));
+        if (!Number.isFinite(indice)) return null;
+
+        return Array.isArray(playoffs.semifinales) ? playoffs.semifinales[indice] : null;
+    }
+
+    function limpiarReferenciasEquipo(doc, id) {
+        (doc.categorias || []).forEach(function (categoria) {
+            if (!categoria || typeof categoria !== 'object') return;
+
+            if (categoria.tipo === 'llaves') {
+                (categoria.rondas || []).forEach(function (ronda) {
+                    (ronda.partidos || []).forEach(function (partido) {
+                        if (partido.equipoA === id) partido.equipoA = null;
+                        if (partido.equipoB === id) partido.equipoB = null;
+                    });
+                });
+
+                if (categoria.tercerPuesto) {
+                    if (categoria.tercerPuesto.equipoA === id) categoria.tercerPuesto.equipoA = null;
+                    if (categoria.tercerPuesto.equipoB === id) categoria.tercerPuesto.equipoB = null;
+                }
+            } else if (categoria.tipo === 'futbol') {
+                (categoria.grupos || []).forEach(function (grupo) {
+                    grupo.equipos = (grupo.equipos || []).map(function (equipo) {
+                        return equipo === id ? null : equipo;
+                    });
+
+                    (grupo.partidos || []).forEach(function (partido) {
+                        if (partido.equipoA === id) partido.equipoA = null;
+                        if (partido.equipoB === id) partido.equipoB = null;
+                    });
+                });
+
+                const playoffs = categoria.playoffs || {};
+                const partidos = []
+                    .concat(Array.isArray(playoffs.semifinales) ? playoffs.semifinales : [])
+                    .concat([playoffs.final, playoffs.tercerPuesto]);
+
+                partidos.forEach(function (partido) {
+                    if (!partido) return;
+                    if (partido.equipoA === id) partido.equipoA = null;
+                    if (partido.equipoB === id) partido.equipoB = null;
+                });
+            } else if (categoria.tipo === 'tiempos') {
+                categoria.entradas = (categoria.entradas || []).filter(function (entrada) {
+                    return entrada.equipo !== id;
+                });
+            }
+        });
+    }
+
+    function mejorTiempoEntrada(entrada) {
+        const tiempos = entrada && Array.isArray(entrada.tiempos) ? entrada.tiempos : [];
+        const validos = tiempos.map(numeroONull).filter(function (tiempo) {
+            return tiempo !== null && tiempo > 0;
         });
 
-        if (encontrada && Array.isArray(encontrada.columnas) && encontrada.columnas.length) {
-            return clonar(encontrada.columnas);
-        }
+        return validos.length ? Math.min.apply(null, validos) : null;
+    }
 
-        if (tipo === 'grupos') {
-            return [
-                { clave: 'pos', titulo: 'POS' },
-                { clave: 'equipo', titulo: 'EQUIPO', alineacion: 'izq' },
-                { clave: 'pj', titulo: 'PJ' },
-                { clave: 'dg', titulo: 'DIF' },
-                { clave: 'pts', titulo: 'PTS', destacar: true }
-            ];
-        }
+    function textoPodio(categoria) {
+        const podio = Logica.podioCategoria(categoria);
 
-        return [
-            { clave: 'pos', titulo: 'POS' },
-            { clave: 'equipo', titulo: 'EQUIPO', alineacion: 'izq' },
-            { clave: 'puntos', titulo: 'PUNTOS', destacar: true }
-        ];
+        return 'Podio actual · 1.º: ' + nombreEquipoPodio(podio.campeon) +
+            ' · 2.º: ' + nombreEquipoPodio(podio.subcampeon) +
+            ' · 3.º: ' + nombreEquipoPodio(podio.tercero) + '.';
+    }
+
+    function nombreEquipoPodio(id, pista) {
+        const equipo = Logica.equipo(llavesTrabajo, id);
+        if (equipo && equipo.nombre) return equipo.nombre;
+        return pista || 'Por definir';
     }
 
     function rotacionNormalizada(valor) {
@@ -1392,10 +2245,45 @@
         return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(String(color || ''));
     }
 
+    function claveCategoriaValida(valor) {
+        const encontrada = CATEGORIAS_EQUIPO.find(function (categoria) {
+            return categoria.clave === valor;
+        });
+
+        return encontrada ? encontrada.clave : 'mini-sumo';
+    }
+
+    function etiquetaCategoriaEquipo(clave) {
+        const encontrada = CATEGORIAS_EQUIPO.find(function (categoria) {
+            return categoria.clave === clave;
+        });
+
+        return encontrada ? encontrada.etiqueta : String(clave || '');
+    }
+
+    function tipoPantallaValido(tipo) {
+        if (tipo === 'llaves' || tipo === 'futbol' || tipo === 'tiempos' || tipo === 'resumen') {
+            return tipo;
+        }
+        return 'resumen';
+    }
+
+    function estadoValido(estado) {
+        if (estado === 'en_curso' || estado === 'finalizado') return estado;
+        return 'pendiente';
+    }
+
+    function numeroONull(valor) {
+        if (valor === null || valor === undefined || valor === '') return null;
+        const numero = Number(valor);
+        return Number.isFinite(numero) ? numero : null;
+    }
+
     function etiquetaTipoLlaves(tipo) {
         if (tipo === 'llaves') return 'Llaves / eliminación directa';
-        if (tipo === 'grupos') return 'Grupos + cruces';
-        return 'Tabla de posiciones';
+        if (tipo === 'futbol') return 'Fútbol · grupos y eliminatorias';
+        if (tipo === 'tiempos') return 'Tabla de tiempos';
+        return 'Resumen y podios';
     }
 
     function mensajeProblemaLlaves(problema) {
@@ -1412,40 +2300,7 @@
         return 'No se pudo leer la nube: ' + texto + ' Se muestra la última copia disponible.';
     }
 
-    function cambiarCampoPartidoLlaves(partido, campo, valor) {
-        if (campo === 'puntosA' || campo === 'puntosB') {
-            if (String(valor).trim() === '') {
-                partido[campo] = null;
-            } else {
-                const numero = Number(valor);
-                partido[campo] = Number.isFinite(numero) ? numero : null;
-            }
-            return;
-        }
-
-        if (campo === 'ganador') {
-            if (valor === 'A' || valor === 'B') {
-                partido.ganador = valor;
-            } else {
-                delete partido.ganador;
-            }
-            return;
-        }
-
-        partido[campo] = valor;
-    }
-
-    function convertirValorTablaLlaves(campo, valor, anterior) {
-        if (typeof anterior === 'number') {
-            if (String(valor).trim() === '') return '';
-            const numero = Number(String(valor).replace(',', '.'));
-            return Number.isFinite(numero) ? numero : valor;
-        }
-
-        return valor;
-    }
-
-    function partidoVacioLlaves() {
+    function combateVacio() {
         return {
             equipoA: null,
             equipoB: null,
@@ -1455,22 +2310,29 @@
         };
     }
 
-    function filaVaciaLlaves(columnas) {
-        const fila = {};
-
-        (Array.isArray(columnas) ? columnas : []).forEach(function (columna) {
-            if (columna && columna.clave && columna.clave !== 'pos') {
-                fila[columna.clave] = '';
-            }
-        });
-
-        return fila;
+    function partidoFutbolVacio() {
+        return {
+            equipoA: null,
+            equipoB: null,
+            golesA: null,
+            golesB: null,
+            penalesA: null,
+            penalesB: null,
+            estado: 'pendiente'
+        };
     }
 
-    function letraGrupoLlaves(indice) {
+    function crearId(prefijo) {
+        return prefijo + '-' + Date.now().toString(36) + '-' +
+            Math.random().toString(36).slice(2, 6);
+    }
+
+    function letraGrupo(indice) {
         const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
         return letras[indice] || String(indice + 1);
     }
+
+    /* ---------- Constructores de controles ---------- */
 
     function crear(etiqueta, clase, texto) {
         const elemento = document.createElement(etiqueta);
@@ -1503,6 +2365,23 @@
         return input;
     }
 
+    function crearInputNumero(valor, dataset, opciones) {
+        opciones = opciones || {};
+
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.min = opciones.min !== undefined ? opciones.min : '0';
+        input.step = '1';
+        input.inputMode = 'numeric';
+        input.value = valor === null || valor === undefined ? '' : String(valor);
+
+        if (opciones.placeholder) input.placeholder = opciones.placeholder;
+        if (opciones.clase) input.className = opciones.clase;
+
+        asignarDatasetLlaves(input, dataset);
+        return input;
+    }
+
     function crearSelectLlaves(valor, opciones, dataset) {
         const select = document.createElement('select');
 
@@ -1516,6 +2395,51 @@
         select.value = valor === null || valor === undefined ? '' : String(valor);
         asignarDatasetLlaves(select, dataset);
         return select;
+    }
+
+    function crearSelectEquipos(claveCategoria, valor, dataset) {
+        const select = document.createElement('select');
+
+        const vacio = document.createElement('option');
+        vacio.value = '';
+        vacio.textContent = '— Por definir —';
+        select.appendChild(vacio);
+
+        const equipos = Logica.equiposDeCategoria(llavesTrabajo, claveCategoria);
+        const actual = Logica.equipo(llavesTrabajo, valor);
+
+        // Si el equipo ya no pertenece a la categoría (por ejemplo, se cambió
+        // de categoría después de cargarlo), se muestra igual para no perder
+        // el cruce, avisando que está fuera de la lista.
+        if (actual && !equipos.some(function (equipo) { return equipo.id === actual.id; })) {
+            equipos.unshift(actual);
+        }
+
+        equipos.forEach(function (equipo) {
+            const opcion = document.createElement('option');
+            opcion.value = equipo.id;
+
+            const fueraDeCategoria = equipo.categoria !== claveCategoria;
+            opcion.textContent = equipo.nombre +
+                (equipo.institucion ? ' · ' + equipo.institucion : '') +
+                (fueraDeCategoria ? ' (otra categoría)' : '');
+
+            select.appendChild(opcion);
+        });
+
+        select.value = valor || '';
+        asignarDatasetLlaves(select, dataset);
+        return select;
+    }
+
+    function crearSelectNumero(valor, valores, dataset) {
+        const opciones = [['', '—']];
+
+        (valores || []).forEach(function (numero) {
+            opciones.push([String(numero), String(numero)]);
+        });
+
+        return crearSelectLlaves(valor, opciones, dataset);
     }
 
     function asignarDatasetLlaves(elemento, dataset) {
@@ -1536,18 +2460,21 @@
         return boton;
     }
 
-    function crearBloqueLlaves(titulo, textoBoton, accion) {
+    function crearBloqueLlaves(titulo) {
         const bloque = crear('div', 'admin-llaves-bloque');
         const cabecera = crear('div', 'admin-llaves-bloque-head');
 
         cabecera.appendChild(crear('h3', '', titulo));
-
-        if (textoBoton && accion) {
-            cabecera.appendChild(crearBotonLlaves(textoBoton, 'ghost', accion));
-        }
-
         bloque.appendChild(cabecera);
+
         return bloque;
+    }
+
+    function agregarAccionBloque(bloque, texto, accion, dataset) {
+        const cabecera = bloque.querySelector('.admin-llaves-bloque-head');
+        if (cabecera) {
+            cabecera.appendChild(crearBotonLlaves(texto, 'ghost', accion, dataset));
+        }
     }
 
     function traducirErrorLogin(error) {

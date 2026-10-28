@@ -2,108 +2,189 @@
  * Datos de la pantalla de llaves y posiciones (brackets.html)
  * ============================================================
  *
- * ESTE ES EL ÚNICO ARCHIVO QUE HAY QUE EDITAR DURANTE EL EVENTO.
- * Después de guardar los cambios, la TV de competidores los muestra al
- * instante (si hace falta, recarga con F5).
+ * Torneo local · Nave Cultural · Mendoza · 2026
  *
- * Estructura general:
- *   bracketsEvento.rotacionSegundos  -> cada cuántos segundos cambia de pantalla
- *   bracketsEvento.actualizadoEn     -> texto que se muestra al pie
- *   bracketsEvento.categorias[]      -> una entrada por pantalla del carrusel
+ * Este archivo define la lista maestra de equipos y el estado de cada
+ * categoría según el reglamento de la Liga Nacional de Robótica (LNR).
+ * NO se usa el ranking nacional: solo importa el torneo de la sede.
  *
- * Tipos de pantalla (campo "tipo"):
- *   "llaves" -> eliminatoria directa (cuartos, semifinales, final, campeón)
- *   "grupos" -> fase de grupos (varias tablas)
- *   "tabla"  -> una tabla de posiciones / tiempos
+ * ESTRUCTURA
+ * ----------
+ *   bracketsEvento.version          -> versión del formato (2)
+ *   bracketsEvento.rotacionSegundos -> segundos que dura cada pantalla
+ *   bracketsEvento.actualizadoEn    -> texto del pie de la TV
+ *   bracketsEvento.equipos[]        -> lista maestra de equipos inscriptos
+ *   bracketsEvento.categorias[]     -> una entrada por pantalla del carrusel
  *
- * En las llaves, cada partido se escribe así:
- *   {
- *       equipoA: "Nombre del robot o equipo",
- *       equipoB: "Nombre del robot o equipo",
- *       puntosA: 3,                 // número, o null si todavía no jugaron
- *       puntosB: 1,
- *       estado: "finalizado"        // "finalizado" | "en_curso" | "pendiente"
- *   }
- * Si un equipo todavía no se conoce, usar null en equipoA/equipoB y
- * estado "pendiente": se muestra "Por definir".
- * El ganador se marca solo con el puntaje; si hace falta forzarlo, agregar
- * "ganador": "A" (o "B") en el partido.
+ * LISTA MAESTRA DE EQUIPOS
+ * ------------------------
+ *   { id: "ms-titanio", nombre: "Titanio", institucion: "E.E.S.T. N° 4",
+ *     categoria: "mini-sumo" }
  *
- * En las tablas, "columnas" define los encabezados y "filas" los datos.
- * Cada columna tiene una "clave" que debe coincidir con las claves de las filas.
+ *   Los partidos guardan el "id" del equipo, no su nombre. Si se cambia el
+ *   nombre en el panel, la TV lo actualiza en todos lados.
+ *
+ *   Categorías válidas: "mini-sumo" | "sumo" | "futbol" | "sigue-lineas"
+ *
+ * TIPOS DE PANTALLA (campo "tipo")
+ * -------------------------------
+ *   "llaves"  -> eliminación directa: cuartos, semifinales, final y 3.er puesto
+ *   "futbol"  -> fase de grupos + semifinales + final + 3.er puesto
+ *   "tiempos" -> tabla de tiempos de Sigue Líneas (3 pasadas, mejor tiempo)
+ *   "resumen" -> podios de todas las categorías (se calcula solo)
+ *
+ * MINI SUMO Y SUMO (reglamento LNR)
+ * ---------------------------------
+ *   Combate al mejor de 3 asaltos, 3 minutos por asalto. Gana quien llega
+ *   primero a 2 Yuhkoh. Por eso los puntos van de 0 a 2.
+ *   El ganador de cada llave avanza solo a la ronda siguiente.
+ *
+ * FÚTBOL DE ROBOTS (reglamento LNR)
+ * ---------------------------------
+ *   Dos tiempos de 3 minutos. En eliminación directa, si hay empate se
+ *   define por penales. Fase de grupos: clasifican 1.º y 2.º de cada grupo.
+ *   Los cruces se arman solos: 1.º A vs 2.º B y 1.º B vs 2.º A.
+ *
+ * SIGUE LÍNEAS
+ * ------------
+ *   Tres pasadas por robot. Los tiempos se guardan en MILISEGUNDOS y la TV
+ *   los muestra como "12.480 s". Gana el menor tiempo.
  */
 
 const bracketsEvento = {
+    version: 2,
+
     // Tiempo de cada pantalla en el carrusel (en segundos).
     rotacionSegundos: 18,
 
     // Texto informativo del pie de página.
     actualizadoEn: "27/10/2026 · 21:30",
 
+    // Sede del torneo local.
+    sede: "Nave Cultural · Mendoza",
+
+    /* ================================================================ */
+    /* LISTA MAESTRA DE EQUIPOS INSCRIPTOS                              */
+    /* ================================================================ */
+    equipos: [
+        /* ---------- Mini Sumo (8 robots) ---------- */
+        { id: "ms-titanio", nombre: "Titanio", institucion: "E.E.S.T. N° 4", categoria: "mini-sumo" },
+        { id: "ms-escorpion", nombre: "Escorpión", institucion: "Colegio San Rafael", categoria: "mini-sumo" },
+        { id: "ms-furia", nombre: "Furia", institucion: "Instituto Andes", categoria: "mini-sumo" },
+        { id: "ms-vendaval", nombre: "Vendaval", institucion: "Escuela N° 12", categoria: "mini-sumo" },
+        { id: "ms-kripton", nombre: "Kriptón", institucion: "E.E.T. N° 6", categoria: "mini-sumo" },
+        { id: "ms-golem", nombre: "Golem", institucion: "Fundación TAE", categoria: "mini-sumo" },
+        { id: "ms-relampago", nombre: "Relámpago", institucion: "Colegio Del Sol", categoria: "mini-sumo" },
+        { id: "ms-sabueso", nombre: "Sabueso", institucion: "Colegio Norte", categoria: "mini-sumo" },
+
+        /* ---------- Sumo (8 robots) ---------- */
+        { id: "su-coloso", nombre: "Coloso", institucion: "E.E.S.T. N° 4", categoria: "sumo" },
+        { id: "su-martillo", nombre: "Martillo", institucion: "Instituto Andes", categoria: "sumo" },
+        { id: "su-vulcano", nombre: "Vulcano", institucion: "Fundación TAE", categoria: "sumo" },
+        { id: "su-hercules", nombre: "Hércules", institucion: "Colegio San Rafael", categoria: "sumo" },
+        { id: "su-destructor", nombre: "Destructor", institucion: "Escuela Industrial", categoria: "sumo" },
+        { id: "su-titan", nombre: "Titán", institucion: "E.E.T. N° 6", categoria: "sumo" },
+        { id: "su-acorazado", nombre: "Acorazado", institucion: "Colegio Del Sol", categoria: "sumo" },
+        { id: "su-bisonte", nombre: "Bisonte", institucion: "Univ. Mendoza", categoria: "sumo" },
+
+        /* ---------- Fútbol de Robots (6 equipos) ---------- */
+        { id: "fu-robogol", nombre: "RoboGol", institucion: "E.E.S.T. N° 4", categoria: "futbol" },
+        { id: "fu-fieras", nombre: "Fieras FC", institucion: "Instituto Andes", categoria: "futbol" },
+        { id: "fu-condores", nombre: "Los Cóndores", institucion: "E.E.T. N° 6", categoria: "futbol" },
+        { id: "fu-metal", nombre: "Metal FC", institucion: "Fundación TAE", categoria: "futbol" },
+        { id: "fu-cyber", nombre: "Cyber United", institucion: "Colegio San Rafael", categoria: "futbol" },
+        { id: "fu-rayo", nombre: "Rayo Verde", institucion: "Colegio Del Sol", categoria: "futbol" },
+
+        /* ---------- Sigue Líneas (10 robots) ---------- */
+        { id: "sl-bolido", nombre: "Bólido", institucion: "Colegio Del Sol", categoria: "sigue-lineas" },
+        { id: "sl-chispa", nombre: "Chispa", institucion: "Fundación TAE", categoria: "sigue-lineas" },
+        { id: "sl-flecha", nombre: "Flecha", institucion: "E.E.S.T. N° 4", categoria: "sigue-lineas" },
+        { id: "sl-centella", nombre: "Centella", institucion: "Instituto Andes", categoria: "sigue-lineas" },
+        { id: "sl-nitro", nombre: "Nitro", institucion: "Colegio San Rafael", categoria: "sigue-lineas" },
+        { id: "sl-puma", nombre: "Puma", institucion: "Univ. Mendoza", categoria: "sigue-lineas" },
+        { id: "sl-cometa", nombre: "Cometa", institucion: "E.E.T. N° 6", categoria: "sigue-lineas" },
+        { id: "sl-vertigo", nombre: "Vértigo", institucion: "Escuela N° 12", categoria: "sigue-lineas" },
+        { id: "sl-trueno", nombre: "Trueno", institucion: "Colegio Norte", categoria: "sigue-lineas" },
+        { id: "sl-dinamo", nombre: "Dínamo", institucion: "Escuela Industrial", categoria: "sigue-lineas" }
+    ],
+
+    /* ================================================================ */
+    /* PANTALLAS DEL CARRUSEL                                           */
+    /* ================================================================ */
     categorias: [
-        /* ============================================================ */
-        /* 1. MINI SUMO - LLAVES                                        */
-        /* ============================================================ */
+        /* ------------------------------------------------------------ */
+        /* 1. MINI SUMO · eliminación directa                           */
+        /* ------------------------------------------------------------ */
         {
-            id: "minisumo",
+            id: "mini-sumo",
+            tipo: "llaves",
             titulo: "MINI SUMO",
-            fase: "FASE DE LLAVES",
+            fase: "CUARTOS · SEMIFINALES · FINAL",
             corto: "MINI SUMO",
             acento: "#00ffff",
-            tipo: "llaves",
-            nota: "Eliminación directa · combates al mejor de 5",
+            equipos: "mini-sumo",
+            unidad: "Yuhkoh",
+            nota: "Eliminación directa · mejor de 3 asaltos · gana quien llega a 2 Yuhkoh",
             rondas: [
                 {
                     nombre: "CUARTOS DE FINAL",
                     partidos: [
-                        { equipoA: "Titanio", equipoB: "Escorpión", puntosA: 3, puntosB: 1, estado: "finalizado" },
-                        { equipoA: "Furia", equipoB: "Vendaval", puntosA: 3, puntosB: 2, estado: "finalizado" },
-                        { equipoA: "Kriptón", equipoB: "Golem", puntosA: 1, puntosB: 3, estado: "finalizado" },
-                        { equipoA: "Relámpago", equipoB: "Sabueso", puntosA: 3, puntosB: 0, estado: "finalizado" }
+                        { equipoA: "ms-titanio", equipoB: "ms-escorpion", puntosA: 2, puntosB: 0, estado: "finalizado" },
+                        { equipoA: "ms-furia", equipoB: "ms-vendaval", puntosA: 2, puntosB: 1, estado: "finalizado" },
+                        { equipoA: "ms-kripton", equipoB: "ms-golem", puntosA: 0, puntosB: 2, estado: "finalizado" },
+                        { equipoA: "ms-relampago", equipoB: "ms-sabueso", puntosA: 2, puntosB: 0, estado: "finalizado" }
                     ]
                 },
                 {
                     nombre: "SEMIFINALES",
                     partidos: [
-                        { equipoA: "Titanio", equipoB: "Furia", puntosA: 3, puntosB: 2, estado: "finalizado" },
-                        { equipoA: "Golem", equipoB: "Relámpago", puntosA: 3, puntosB: 1, estado: "finalizado" }
+                        { equipoA: null, equipoB: null, puntosA: 2, puntosB: 1, estado: "finalizado" },
+                        { equipoA: null, equipoB: null, puntosA: 0, puntosB: 2, estado: "finalizado" }
                     ]
                 },
                 {
                     nombre: "FINAL",
                     partidos: [
-                        { equipoA: "Titanio", equipoB: "Golem", puntosA: 2, puntosB: 3, estado: "finalizado" }
+                        { equipoA: null, equipoB: null, puntosA: 1, puntosB: 2, estado: "finalizado" }
                     ]
                 }
             ],
-            campeon: { equipo: "Golem", detalle: "Mini Sumo · 2026" }
+            tercerPuesto: {
+                equipoA: null,
+                equipoB: null,
+                puntosA: 2,
+                puntosB: 0,
+                estado: "finalizado"
+            }
         },
 
-        /* ============================================================ */
-        /* 2. SUMO - LLAVES                                             */
-        /* ============================================================ */
+        /* ------------------------------------------------------------ */
+        /* 2. SUMO · eliminación directa (en curso)                     */
+        /* ------------------------------------------------------------ */
         {
             id: "sumo",
+            tipo: "llaves",
             titulo: "SUMO",
-            fase: "FASE DE LLAVES",
+            fase: "CUARTOS · SEMIFINALES · FINAL",
             corto: "SUMO",
             acento: "#ff00ff",
-            tipo: "llaves",
-            nota: "Eliminación directa · combates al mejor de 5",
+            equipos: "sumo",
+            unidad: "Yuhkoh",
+            nota: "Eliminación directa · mejor de 3 asaltos · gana quien llega a 2 Yuhkoh",
             rondas: [
                 {
                     nombre: "CUARTOS DE FINAL",
                     partidos: [
-                        { equipoA: "Coloso", equipoB: "Martillo", puntosA: 2, puntosB: 1, estado: "finalizado" },
-                        { equipoA: "Vulcano", equipoB: "Hércules", puntosA: 3, puntosB: 0, estado: "finalizado" },
-                        { equipoA: "Destructor", equipoB: "Titán", puntosA: 1, puntosB: 1, estado: "en_curso" },
-                        { equipoA: "Acorazado", equipoB: "Bisonte", puntosA: null, puntosB: null, estado: "pendiente" }
+                        { equipoA: "su-coloso", equipoB: "su-martillo", puntosA: 2, puntosB: 0, estado: "finalizado" },
+                        { equipoA: "su-vulcano", equipoB: "su-hercules", puntosA: 2, puntosB: 1, estado: "finalizado" },
+                        { equipoA: "su-destructor", equipoB: "su-titan", puntosA: 1, puntosB: 1, estado: "en_curso" },
+                        { equipoA: "su-acorazado", equipoB: "su-bisonte", puntosA: null, puntosB: null, estado: "pendiente" }
                     ]
                 },
                 {
                     nombre: "SEMIFINALES",
                     partidos: [
-                        { equipoA: "Coloso", equipoB: "Vulcano", puntosA: null, puntosB: null, estado: "pendiente" },
+                        { equipoA: null, equipoB: null, puntosA: null, puntosB: null, estado: "pendiente" },
                         { equipoA: null, equipoB: null, puntosA: null, puntosB: null, estado: "pendiente" }
                     ]
                 },
@@ -114,119 +195,107 @@ const bracketsEvento = {
                     ]
                 }
             ],
-            campeon: { equipo: null, detalle: "Sumo · 2026" }
+            tercerPuesto: {
+                equipoA: null,
+                equipoB: null,
+                puntosA: null,
+                puntosB: null,
+                estado: "pendiente"
+            }
         },
 
-        /* ============================================================ */
-        /* 3. FÚTBOL DE ROBOTS - FASE DE GRUPOS                         */
-        /* ============================================================ */
+        /* ------------------------------------------------------------ */
+        /* 3. FÚTBOL DE ROBOTS · grupos + eliminatorias                 */
+        /* ------------------------------------------------------------ */
         {
             id: "futbol",
+            tipo: "futbol",
             titulo: "FÚTBOL DE ROBOTS",
-            fase: "FASE DE GRUPOS",
+            fase: "GRUPOS · SEMIFINALES · FINAL",
             corto: "FÚTBOL",
             acento: "#00ff88",
-            tipo: "grupos",
-            nota: "Clasifican los dos primeros de cada grupo a semifinales",
-            columnas: [
-                { clave: "pos", titulo: "POS" },
-                { clave: "equipo", titulo: "EQUIPO", alineacion: "izq" },
-                { clave: "pj", titulo: "PJ" },
-                { clave: "dg", titulo: "DIF" },
-                { clave: "pts", titulo: "PTS", destacar: true }
-            ],
+            equipos: "futbol",
+            nota: "2 tiempos de 3 minutos · clasifican 1.º y 2.º de cada grupo · empates en eliminación se definen por penales",
             grupos: [
                 {
                     nombre: "GRUPO A",
-                    equipos: [
-                        { equipo: "RoboGol", pj: 3, dg: "+7", pts: 9 },
-                        { equipo: "Fieras FC", pj: 3, dg: "+3", pts: 6 },
-                        { equipo: "Los Galácticos", pj: 3, dg: "-1", pts: 3 },
-                        { equipo: "Tornado FC", pj: 3, dg: "-9", pts: 0 }
+                    equipos: ["fu-robogol", "fu-fieras", "fu-condores"],
+                    partidos: [
+                        { equipoA: "fu-robogol", equipoB: "fu-fieras", golesA: 4, golesB: 1, estado: "finalizado" },
+                        { equipoA: "fu-fieras", equipoB: "fu-condores", golesA: 2, golesB: 2, estado: "finalizado" },
+                        { equipoA: "fu-condores", equipoB: "fu-robogol", golesA: null, golesB: null, estado: "pendiente" }
                     ]
                 },
                 {
                     nombre: "GRUPO B",
-                    equipos: [
-                        { equipo: "Metal FC", pj: 3, dg: "+6", pts: 9 },
-                        { equipo: "Cyber United", pj: 3, dg: "+4", pts: 6 },
-                        { equipo: "Los Cóndores", pj: 3, dg: "-2", pts: 3 },
-                        { equipo: "Rayo Verde", pj: 3, dg: "-8", pts: 0 }
+                    equipos: ["fu-metal", "fu-cyber", "fu-rayo"],
+                    partidos: [
+                        { equipoA: "fu-metal", equipoB: "fu-cyber", golesA: 3, golesB: 0, estado: "finalizado" },
+                        { equipoA: "fu-cyber", equipoB: "fu-rayo", golesA: 1, golesB: 1, estado: "finalizado" },
+                        { equipoA: "fu-rayo", equipoB: "fu-metal", golesA: 0, golesB: 1, estado: "en_curso" }
                     ]
                 }
             ],
-            // Cruces que se muestran debajo de los grupos (opcional).
-            // Si todavía no están definidos, dejar equipoA/equipoB en null.
-            cruces: {
-                titulo: "SEMIFINALES",
-                partidos: [
-                    { equipoA: "RoboGol", equipoB: "Cyber United", puntosA: null, puntosB: null, estado: "pendiente" },
-                    { equipoA: "Metal FC", equipoB: "Fieras FC", puntosA: null, puntosB: null, estado: "pendiente" }
-                ]
+            playoffs: {
+                semifinales: [
+                    { equipoA: null, equipoB: null, golesA: null, golesB: null, penalesA: null, penalesB: null, estado: "pendiente" },
+                    { equipoA: null, equipoB: null, golesA: null, golesB: null, penalesA: null, penalesB: null, estado: "pendiente" }
+                ],
+                final: {
+                    equipoA: null, equipoB: null,
+                    golesA: null, golesB: null,
+                    penalesA: null, penalesB: null,
+                    estado: "pendiente"
+                },
+                tercerPuesto: {
+                    equipoA: null, equipoB: null,
+                    golesA: null, golesB: null,
+                    penalesA: null, penalesB: null,
+                    estado: "pendiente"
+                }
             }
         },
 
-        /* ============================================================ */
-        /* 4. SIGUE LÍNEAS - TABLA DE TIEMPOS Y PUNTOS                  */
-        /* ============================================================ */
+        /* ------------------------------------------------------------ */
+        /* 4. SIGUE LÍNEAS · tabla de tiempos                           */
+        /* ------------------------------------------------------------ */
         {
             id: "sigue-lineas",
+            tipo: "tiempos",
             titulo: "SIGUE LÍNEAS",
-            fase: "TABLA DE POSICIONES",
+            fase: "TABLA DE TIEMPOS",
             corto: "SIGUE LÍNEAS",
             acento: "#ffaa00",
-            tipo: "tabla",
-            nota: "Se ordena por mejor tiempo de pista · 3 pasadas por robot",
-            columnas: [
-                { clave: "pos", titulo: "POS" },
-                { clave: "robot", titulo: "ROBOT", alineacion: "izq" },
-                { clave: "equipo", titulo: "EQUIPO", alineacion: "izq" },
-                { clave: "tiempo", titulo: "MEJOR TIEMPO", destacar: true },
-                { clave: "puntos", titulo: "PUNTOS", destacar: true }
-            ],
-            filas: [
-                { robot: "Bólido", equipo: "Rayo Verde", tiempo: "12.48 s", puntos: 100 },
-                { robot: "Chispa", equipo: "Metal FC", tiempo: "12.91 s", puntos: 90 },
-                { robot: "Flecha", equipo: "Cyber United", tiempo: "13.05 s", puntos: 85 },
-                { robot: "Tornado", equipo: "Tornado FC", tiempo: "13.44 s", puntos: 80 },
-                { robot: "Relámpago", equipo: "Fieras FC", tiempo: "13.82 s", puntos: 75 },
-                { robot: "Kriptón", equipo: "RoboGol", tiempo: "14.10 s", puntos: 70 },
-                { robot: "Titán", equipo: "Los Cóndores", tiempo: "14.55 s", puntos: 65 },
-                { robot: "Nitro", equipo: "Los Galácticos", tiempo: "15.02 s", puntos: 60 },
-                { robot: "Puma", equipo: "Andes Bots", tiempo: "15.40 s", puntos: 55 },
-                { robot: "Golem", equipo: "TAE Robotics", tiempo: "16.11 s", puntos: 50 }
+            equipos: "sigue-lineas",
+            nota: "3 pasadas por robot · se ordena por el mejor tiempo · gana el menor tiempo",
+            entradas: [
+                { equipo: "sl-bolido", tiempos: [12480, 12510, 12390] },
+                { equipo: "sl-chispa", tiempos: [12910, 12840, null] },
+                { equipo: "sl-flecha", tiempos: [13050, 12990, 13120] },
+                { equipo: "sl-centella", tiempos: [13440, null, null] },
+                { equipo: "sl-nitro", tiempos: [13820, 13760, null] },
+                { equipo: "sl-puma", tiempos: [14100, 14230, 14050] },
+                { equipo: "sl-cometa", tiempos: [14550, 14490, null] },
+                { equipo: "sl-vertigo", tiempos: [15020, null, null] },
+                { equipo: "sl-trueno", tiempos: [15400, 15310, 15280] },
+                { equipo: "sl-dinamo", tiempos: [null, null, null] }
             ]
         },
 
-        /* ============================================================ */
-        /* 5. LIGA NACIONAL OFICIAL - TABLA GENERAL                     */
-        /* ============================================================ */
+        /* ------------------------------------------------------------ */
+        /* 5. RESUMEN DEL TORNEO · podios (se calcula solo)             */
+        /* ------------------------------------------------------------ */
         {
-            id: "liga-nacional",
-            titulo: "LIGA NACIONAL OFICIAL",
-            fase: "TABLA GENERAL",
-            corto: "LIGA NACIONAL",
+            id: "resumen",
+            tipo: "resumen",
+            titulo: "RESUMEN DEL TORNEO",
+            fase: "PODIOS Y MEDALLERO",
+            corto: "RESUMEN",
             acento: "#ff3366",
-            tipo: "tabla",
-            nota: "Puntaje acumulado en las fechas de la Liga Nacional de Robótica",
-            columnas: [
-                { clave: "pos", titulo: "POS" },
-                { clave: "equipo", titulo: "EQUIPO", alineacion: "izq" },
-                { clave: "institucion", titulo: "INSTITUCIÓN", alineacion: "izq" },
-                { clave: "puntos", titulo: "PUNTOS", destacar: true }
-            ],
-            filas: [
-                { equipo: "Rayo Verde", institucion: "Esc. Técnica N° 4", puntos: 480 },
-                { equipo: "Metal FC", institucion: "Instituto Andes", puntos: 455 },
-                { equipo: "Cyber United", institucion: "Colegio San Rafael", puntos: 430 },
-                { equipo: "Fieras FC", institucion: "Esc. N° 12", puntos: 410 },
-                { equipo: "RoboGol", institucion: "ITYT", puntos: 385 },
-                { equipo: "Tornado FC", institucion: "Colegio Del Sol", puntos: 360 },
-                { equipo: "Los Cóndores", institucion: "Esc. Técnica N° 6", puntos: 340 },
-                { equipo: "Andes Bots", institucion: "Univ. Mendoza", puntos: 315 },
-                { equipo: "TAE Robotics", institucion: "Fundación TAE", puntos: 295 },
-                { equipo: "Los Galácticos", institucion: "Colegio Norte", puntos: 270 }
-            ]
+            nota: "Torneo local · Nave Cultural · Mendoza · Los podios se actualizan con los resultados"
         }
     ]
 };
+
+// Compatibilidad: algunos scripts viejos buscaban window.bracketsEvento.
+if (typeof window !== 'undefined') window.bracketsEvento = bracketsEvento;

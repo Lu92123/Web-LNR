@@ -1555,6 +1555,7 @@ html, body {
 
 .brk-body {
     --brk-acento: #00ffff;
+    --brk-acento-texto: #00ffff;
     --brk-acento-suave: rgba(0, 255, 255, 0.14);
     --brk-acento-medio: rgba(0, 255, 255, 0.45);
     --brk-acento-brillo: rgba(0, 255, 255, 0.35);
@@ -1654,7 +1655,7 @@ html, body {
     font-weight: 800;
     letter-spacing: 0.1em;
     line-height: 1.05;
-    color: var(--brk-acento);
+    color: var(--brk-acento-texto);
     text-shadow: 0 0 18px var(--brk-acento-brillo);
     white-space: nowrap;
 }
@@ -1812,7 +1813,7 @@ html, body {
     font-size: 1.7vh;
     font-weight: 700;
     letter-spacing: 0.14em;
-    color: var(--brk-acento);
+    color: var(--brk-acento-texto);
     text-transform: uppercase;
 }
 
@@ -1875,6 +1876,24 @@ html, body {
     text-overflow: ellipsis;
 }
 
+.brk-jugador-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15vh;
+    min-width: 0;
+}
+
+.brk-jugador-inst {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.25vh;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .brk-jugador-puntos {
     flex-shrink: 0;
     min-width: 2.2ch;
@@ -1891,7 +1910,7 @@ html, body {
 
 .brk-ganador .brk-jugador-nombre,
 .brk-ganador .brk-jugador-puntos {
-    color: var(--brk-acento);
+    color: var(--brk-acento-texto);
     font-weight: 700;
 }
 
@@ -1937,7 +1956,7 @@ html, body {
     font-size: 3.2vh;
     font-weight: 800;
     line-height: 1.1;
-    color: var(--brk-acento);
+    color: var(--brk-acento-texto);
     text-shadow: 0 0 20px var(--brk-acento-brillo);
 }
 
@@ -1986,7 +2005,7 @@ html, body {
     font-size: 2vh;
     font-weight: 700;
     letter-spacing: 0.18em;
-    color: var(--brk-acento);
+    color: var(--brk-acento-texto);
     text-transform: uppercase;
 }
 
@@ -2002,7 +2021,7 @@ html, body {
     font-size: 2vh;
     font-weight: 700;
     letter-spacing: 0.18em;
-    color: var(--brk-acento);
+    color: var(--brk-acento-texto);
     text-transform: uppercase;
 }
 
@@ -2084,11 +2103,11 @@ html, body {
 .brk-tabla tbody tr.brk-fila-1 .brk-pos-celda,
 .brk-tabla tbody tr.brk-fila-2 .brk-pos-celda,
 .brk-tabla tbody tr.brk-fila-3 .brk-pos-celda {
-    color: var(--brk-acento);
+    color: var(--brk-acento-texto);
 }
 
 .brk-celda-destacada {
-    color: var(--brk-acento);
+    color: var(--brk-acento-texto);
     font-weight: 700;
 }
 
@@ -2097,6 +2116,350 @@ html, body {
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+/* ---------- Columna de podio (tercer puesto + campeón) ---------- */
+
+.brk-podio {
+    flex: 0 0 17%;
+    display: flex;
+    flex-direction: column;
+    gap: 1vh;
+    min-width: 0;
+}
+
+.brk-podio .brk-campeon {
+    flex: 0 0 auto;
+    width: 100%;
+    min-height: 0;
+    margin-top: auto;
+}
+
+.brk-partidos--tercero {
+    flex: 0 0 auto;
+    justify-content: flex-start;
+    padding-top: 0;
+}
+
+.brk-partido--tercero {
+    border-left-color: var(--neon-orange, #ffaa00);
+}
+
+/* ---------- Fútbol de robots ---------- */
+
+.brk-futbol {
+    flex: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    gap: 1.4vw;
+    min-height: 0;
+}
+
+.brk-futbol-grupos {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.2vw;
+    min-height: 0;
+    align-content: center;
+}
+
+.brk-futbol-llave {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.2vw;
+    min-height: 0;
+}
+
+.brk-futbol-col {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8vh;
+    min-width: 0;
+}
+
+.brk-futbol-titulo {
+    flex-shrink: 0;
+    padding: 0.7vh 0.5vw;
+    background: var(--bg-secondary);
+    border-bottom: 2px solid var(--brk-acento-medio);
+    border-radius: 4px 4px 0 0;
+    text-align: center;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.6vh;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: var(--brk-acento-texto);
+    text-transform: uppercase;
+}
+
+.brk-futbol-titulo--separada {
+    margin-top: 1vh;
+}
+
+.brk-futbol-col .brk-partidos {
+    flex: 0 0 auto;
+    justify-content: flex-start;
+    padding-top: 0;
+}
+
+.brk-futbol-col .brk-campeon {
+    flex: 1 1 auto;
+    margin-top: 1vh;
+}
+
+.brk-tabla--grupo {
+    font-size: 1.9vh;
+}
+
+.brk-tabla--grupo thead th {
+    padding: 0.75vh 0.5vw;
+    font-size: 1.3vh;
+}
+
+.brk-tabla--grupo tbody td {
+    padding: 0.85vh 0.5vw;
+    font-size: 1.9vh;
+}
+
+.brk-tabla--grupo .brk-col-equipo {
+    max-width: 16ch;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.brk-tabla--grupo tr.brk-clasifica td {
+    background: var(--brk-acento-suave);
+}
+
+.brk-tabla--grupo tr.brk-clasifica .brk-pos-celda {
+    color: var(--brk-acento-texto);
+}
+
+.brk-tabla-vacia-celda {
+    padding: 1.6vh 1vw !important;
+    text-align: center;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.5vh;
+    color: var(--text-secondary);
+}
+
+.brk-partido-penales {
+    padding: 0.35vh 0.8vw;
+    border-top: 1px dashed var(--border-color);
+    text-align: right;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.25vh;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--neon-orange, #ffaa00);
+    text-transform: uppercase;
+}
+
+/* ---------- Sigue Líneas: tabla de tiempos ---------- */
+
+.brk-tabla--tiempos {
+    font-size: 1.9vh;
+}
+
+.brk-tabla--tiempos thead th {
+    padding: 0.8vh 0.7vw;
+    font-size: 1.3vh;
+}
+
+.brk-tabla--tiempos tbody td {
+    padding: 0.8vh 0.7vw;
+    font-size: 1.9vh;
+}
+
+.brk-celda-robot {
+    font-weight: 700;
+}
+
+.brk-celda-inst {
+    font-size: 1.5vh !important;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.brk-celda-tiempo {
+    font-family: 'Exo 2', monospace;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+}
+
+.brk-tabla--tiempos tbody tr.brk-fila-1 td {
+    background: var(--brk-acento-suave);
+}
+
+/* ---------- Resumen del torneo ---------- */
+
+.brk-resumen {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1.4vh;
+    min-height: 0;
+}
+
+.brk-resumen-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.2vw;
+    flex-shrink: 0;
+}
+
+.brk-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3vh;
+    padding: 1vh 1vw;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+}
+
+.brk-stat-valor {
+    font-family: 'Exo 2', sans-serif;
+    font-size: 2.9vh;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--brk-acento-texto);
+    text-shadow: 0 0 14px var(--brk-acento-brillo);
+}
+
+.brk-stat-etiqueta {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.2vh;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+
+.brk-resumen-grilla {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-auto-rows: 1fr;
+    gap: 1.2vw;
+    min-height: 0;
+}
+
+.brk-podio-card {
+    --brk-card-acento: var(--brk-acento);
+    --brk-card-acento-texto: var(--brk-acento-texto);
+    display: flex;
+    flex-direction: column;
+    gap: 0.7vh;
+    padding: 1.2vh 1.2vw;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-top: 3px solid var(--brk-card-acento);
+    border-radius: 9px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+    min-height: 0;
+    overflow: hidden;
+}
+
+.brk-podio-titulo {
+    flex-shrink: 0;
+    font-family: 'Exo 2', sans-serif;
+    font-size: 2vh;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    color: var(--brk-card-acento-texto);
+    text-transform: uppercase;
+}
+
+.brk-medalla {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.9vw;
+    padding: 0.7vh 0.8vw;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 7px;
+    min-height: 0;
+}
+
+.brk-medalla-puesto {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.4vh;
+    height: 3.4vh;
+    border-radius: 50%;
+    font-family: 'Exo 2', sans-serif;
+    font-size: 1.8vh;
+    font-weight: 800;
+    color: #04070d;
+}
+
+.brk-medalla--oro .brk-medalla-puesto {
+    background: #ffd54a;
+    box-shadow: 0 0 14px rgba(255, 213, 74, 0.45);
+}
+
+.brk-medalla--plata .brk-medalla-puesto {
+    background: #cfd8e3;
+    box-shadow: 0 0 12px rgba(207, 216, 227, 0.35);
+}
+
+.brk-medalla--bronce .brk-medalla-puesto {
+    background: #d08a4e;
+    box-shadow: 0 0 12px rgba(208, 138, 78, 0.35);
+}
+
+.brk-medalla-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1vh;
+    min-width: 0;
+}
+
+.brk-medalla-etiqueta {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.1vh;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+
+.brk-medalla-equipo {
+    font-family: 'Exo 2', sans-serif;
+    font-size: 2.1vh;
+    font-weight: 700;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.brk-medalla-inst {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.2vh;
+    font-weight: 600;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.brk-medalla--vacia .brk-medalla-equipo {
+    font-style: italic;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.brk-medalla--vacia .brk-medalla-puesto {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    box-shadow: none;
 }
 
 /* ---------- Pie con puntos del carrusel ---------- */
@@ -2186,7 +2549,7 @@ html, body {
 }
 
 .brk-error code {
-    color: var(--brk-acento);
+    color: var(--brk-acento-texto);
 }
 
 /* ---------- Ajustes para pantallas chicas ---------- */
@@ -2293,6 +2656,62 @@ html, body {
 
     .brk-ayuda {
         display: none;
+    }
+
+    .brk-podio {
+        flex: 0 0 165px;
+    }
+
+    .brk-jugador-inst {
+        font-size: 10px;
+    }
+
+    .brk-futbol {
+        grid-template-columns: 1fr;
+        overflow-y: auto;
+    }
+
+    .brk-futbol-grupos,
+    .brk-futbol-llave {
+        grid-template-columns: 1fr;
+    }
+
+    .brk-tabla--grupo,
+    .brk-tabla--tiempos {
+        font-size: 12px;
+    }
+
+    .brk-tabla--grupo thead th,
+    .brk-tabla--tiempos thead th {
+        padding: 5px 6px;
+        font-size: 10px;
+    }
+
+    .brk-tabla--grupo tbody td,
+    .brk-tabla--tiempos tbody td {
+        padding: 5px 6px;
+        font-size: 12px;
+    }
+
+    .brk-celda-inst {
+        font-size: 10px !important;
+    }
+
+    .brk-resumen {
+        overflow-y: auto;
+    }
+
+    .brk-resumen-stats,
+    .brk-resumen-grilla {
+        grid-template-columns: 1fr;
+    }
+
+    .brk-medalla-equipo {
+        font-size: 15px;
+    }
+
+    .brk-stat-valor {
+        font-size: 20px;
     }
 }
 

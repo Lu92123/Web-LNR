@@ -18,7 +18,7 @@
     const TABLA_LLAVES = 'llaves';
     const CLAVE_CACHE = 'webliga-horarios-cache-v1';
     const CLAVE_CACHE_AVISO = 'webliga-aviso-cache-v1';
-    const CLAVE_CACHE_LLAVES = 'webliga-llaves-cache-v1';
+    const CLAVE_CACHE_LLAVES = 'webliga-llaves-cache-v2';
     const INTERVALO_RESPALDO = 30000;
     const TIEMPO_MAXIMO_LECTURA = 12000;
     const TIEMPO_MAXIMO_ESCRITURA = 15000;
