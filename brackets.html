@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Llaves y posiciones · Probotae 2026</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="brk-body">
+    <div class="brk-app" id="brkApp">
+        <header class="brk-header">
+            <a class="brk-brand" href="index.html" title="Ir al tablero principal">
+                <span class="brk-brand-mark">PROBOTAE</span>
+                <span class="brk-brand-sub">COMPETENCIA DE ROBÓTICA 2026</span>
+            </a>
+
+            <div class="brk-header-centro">
+                <span class="brk-header-label">CATEGORÍA</span>
+                <h1 id="brkCategoriaActual">Cargando…</h1>
+                <span class="brk-header-fase" id="brkFaseActual">—</span>
+            </div>
+
+            <div class="brk-reloj">
+                <span class="brk-reloj-label">HORA</span>
+                <span class="brk-reloj-hora" id="brkClock">--:--:--</span>
+            </div>
+        </header>
+
+        <div class="brk-progreso" role="presentation">
+            <div class="brk-progreso-fill" id="brkProgreso"></div>
+        </div>
+
+        <main class="brk-main" id="brkMain" aria-live="polite"></main>
+
+        <footer class="brk-footer">
+            <div class="brk-puntos" id="brkPuntos" role="tablist" aria-label="Pantallas del carrusel"></div>
+            <span class="brk-actualizado" id="brkActualizado"></span>
+            <span class="brk-ayuda" id="brkAyuda">← → cambian · ESPACIO pausa · F pantalla completa</span>
+        </footer>
+    </div>
+
+    <script src="brackets-data.js"></script>
+    <script src="brackets.js"></script>
+</body>
+</html>

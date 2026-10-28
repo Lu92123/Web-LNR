@@ -1547,3 +1547,763 @@ html, body {
         opacity: 0;
     }
 }
+
+/* ==================================================================== */
+/* PANTALLA DE LLAVES Y POSICIONES (brackets.html)                       */
+/* Segunda TV: competidores y jueces. Estética neón, tipografía grande. */
+/* ==================================================================== */
+
+.brk-body {
+    --brk-acento: #00ffff;
+    --brk-acento-suave: rgba(0, 255, 255, 0.14);
+    --brk-acento-medio: rgba(0, 255, 255, 0.45);
+    --brk-acento-brillo: rgba(0, 255, 255, 0.35);
+    background:
+        radial-gradient(1100px 600px at 12% -10%, rgba(0, 255, 255, 0.07), transparent 60%),
+        radial-gradient(900px 500px at 88% 110%, rgba(255, 0, 255, 0.06), transparent 60%),
+        linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+}
+
+.brk-app {
+    height: 100vh;
+    height: 100dvh;
+    width: 100vw;
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    gap: 0.9vh;
+    padding: 1.2vh 1.5vw;
+    overflow: hidden;
+}
+
+/* ---------- Encabezado fijo con categoría y reloj ---------- */
+
+.brk-header {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 1.5vw;
+    padding: 1vh 1.6vw;
+    background: linear-gradient(90deg, var(--bg-secondary) 0%, var(--bg-tertiary) 50%, var(--bg-secondary) 100%);
+    border: 2px solid var(--border-color);
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+}
+
+.brk-header::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--brk-acento), transparent);
+    opacity: 0.75;
+}
+
+.brk-brand {
+    justify-self: start;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3vh;
+    text-decoration: none;
+    color: inherit;
+}
+
+.brk-brand-mark {
+    font-family: 'Exo 2', sans-serif;
+    font-size: 2.6vh;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    color: var(--text-primary);
+    line-height: 1;
+}
+
+.brk-brand-sub {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.25vh;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+
+.brk-header-centro {
+    justify-self: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2vh;
+    text-align: center;
+    min-width: 0;
+}
+
+.brk-header-label {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.2vh;
+    font-weight: 700;
+    letter-spacing: 0.28em;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+
+.brk-header-centro h1 {
+    font-family: 'Exo 2', sans-serif;
+    font-size: 4.2vh;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    line-height: 1.05;
+    color: var(--brk-acento);
+    text-shadow: 0 0 18px var(--brk-acento-brillo);
+    white-space: nowrap;
+}
+
+.brk-header-fase {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.7vh;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+
+.brk-header-fase[hidden] {
+    display: none;
+}
+
+.brk-cambio {
+    animation: brkCambio 0.45s ease;
+}
+
+@keyframes brkCambio {
+    from {
+        opacity: 0.3;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+.brk-reloj {
+    justify-self: end;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.2vh;
+}
+
+.brk-reloj-label {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.2vh;
+    font-weight: 700;
+    letter-spacing: 0.28em;
+    color: var(--text-secondary);
+}
+
+.brk-reloj-hora {
+    font-family: 'Exo 2', monospace;
+    font-size: 4.2vh;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    line-height: 1;
+    color: var(--neon-green);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Barra de progreso del carrusel ---------- */
+
+.brk-progreso {
+    height: 6px;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.16);
+    overflow: hidden;
+}
+
+.brk-progreso-fill {
+    height: 100%;
+    width: 100%;
+    transform: scaleX(0);
+    transform-origin: left center;
+    background: linear-gradient(90deg, var(--brk-acento-medio), var(--brk-acento));
+    box-shadow: 0 0 10px var(--brk-acento-brillo);
+}
+
+.brk-progreso-fill.corriendo {
+    animation: brkProgreso var(--brk-duracion, 18s) linear forwards;
+}
+
+.brk-progreso-fill.pausado {
+    animation-play-state: paused;
+}
+
+@keyframes brkProgreso {
+    from {
+        transform: scaleX(0);
+    }
+    to {
+        transform: scaleX(1);
+    }
+}
+
+/* ---------- Escenario del carrusel ---------- */
+
+.brk-main {
+    position: relative;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.brk-slide {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8vh;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(6px);
+    transition: opacity 0.45s ease, transform 0.45s ease, visibility 0.45s;
+}
+
+.brk-slide.activa {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+}
+
+.brk-nota {
+    flex-shrink: 0;
+    text-align: center;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.8vh;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+
+/* ---------- Llaves (eliminación directa) ---------- */
+
+.brk-bracket {
+    flex: 1;
+    display: flex;
+    gap: 1.2vw;
+    min-height: 0;
+}
+
+.brk-ronda {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.brk-ronda-titulo {
+    flex-shrink: 0;
+    padding: 0.8vh 0.6vw;
+    background: var(--bg-secondary);
+    border-bottom: 2px solid var(--brk-acento-medio);
+    border-radius: 4px 4px 0 0;
+    text-align: center;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.7vh;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: var(--brk-acento);
+    text-transform: uppercase;
+}
+
+.brk-partidos {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    gap: 1vh;
+    min-height: 0;
+    padding-top: 0.6vh;
+}
+
+.brk-partido {
+    position: relative;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-left: 3px solid var(--brk-acento-medio);
+    border-radius: 6px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+    overflow: hidden;
+}
+
+.brk-partido--en_curso {
+    border-color: var(--brk-acento);
+    box-shadow: 0 0 16px var(--brk-acento-brillo);
+}
+
+.brk-en-vivo {
+    display: block;
+    padding: 0.35vh 0.5vw;
+    background: var(--brk-acento);
+    color: #04070d;
+    text-align: center;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.15vh;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+}
+
+.brk-jugador {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8vw;
+    padding: 1.15vh 0.9vw;
+    font-family: 'Exo 2', sans-serif;
+}
+
+.brk-jugador + .brk-jugador {
+    border-top: 1px solid var(--border-color);
+}
+
+.brk-jugador-nombre {
+    font-size: 2.05vh;
+    font-weight: 600;
+    line-height: 1.15;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.brk-jugador-puntos {
+    flex-shrink: 0;
+    min-width: 2.2ch;
+    text-align: right;
+    font-size: 2.35vh;
+    font-weight: 700;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+}
+
+.brk-ganador {
+    background: var(--brk-acento-suave);
+}
+
+.brk-ganador .brk-jugador-nombre,
+.brk-ganador .brk-jugador-puntos {
+    color: var(--brk-acento);
+    font-weight: 700;
+}
+
+.brk-vacio .brk-jugador-nombre {
+    font-style: italic;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.brk-sin-partidos {
+    text-align: center;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.5vh;
+    color: var(--text-secondary);
+}
+
+.brk-campeon {
+    flex: 0 0 14%;
+    align-self: center;
+    min-height: 26vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1vh;
+    padding: 1.5vh 0.9vw;
+    text-align: center;
+    border: 2px dashed var(--brk-acento-medio);
+    border-radius: 10px;
+    background: linear-gradient(180deg, var(--brk-acento-suave), transparent 75%);
+}
+
+.brk-campeon-label {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.35vh;
+    font-weight: 700;
+    letter-spacing: 0.24em;
+    color: var(--text-secondary);
+}
+
+.brk-campeon-nombre {
+    font-family: 'Exo 2', sans-serif;
+    font-size: 3.2vh;
+    font-weight: 800;
+    line-height: 1.1;
+    color: var(--brk-acento);
+    text-shadow: 0 0 20px var(--brk-acento-brillo);
+}
+
+.brk-campeon-detalle {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.35vh;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+
+.brk-campeon--vacio .brk-campeon-nombre {
+    font-size: 2.1vh;
+    font-style: italic;
+    color: var(--text-secondary);
+    text-shadow: none;
+}
+
+/* ---------- Fase de grupos ---------- */
+
+.brk-grupos {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2.2vh;
+    min-height: 0;
+}
+
+.brk-grupos-filas {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2vw;
+}
+
+.brk-grupo {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.brk-grupo-titulo {
+    margin-bottom: 0.8vh;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 2vh;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: var(--brk-acento);
+    text-transform: uppercase;
+}
+
+.brk-cruces {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8vh;
+}
+
+.brk-cruces-titulo {
+    text-align: center;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 2vh;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: var(--brk-acento);
+    text-transform: uppercase;
+}
+
+.brk-cruces-lista {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.2vw;
+}
+
+/* ---------- Tablas de posiciones ---------- */
+
+.brk-tabla-panel {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+}
+
+.brk-tabla-panel > .brk-tabla {
+    height: 100%;
+}
+
+.brk-tabla {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'Exo 2', sans-serif;
+    font-size: 2.1vh;
+}
+
+.brk-tabla thead th {
+    padding: 1vh 1.2vw;
+    background: var(--bg-secondary);
+    border-bottom: 2px solid var(--brk-acento-medio);
+    text-align: center;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.5vh;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+
+.brk-tabla tbody td {
+    padding: 1.1vh 1.2vw;
+    border-bottom: 1px solid var(--border-color);
+    text-align: center;
+    font-size: 2.1vh;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.brk-tabla tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.brk-tabla tbody tr:nth-child(even) {
+    background: rgba(255, 255, 255, 0.025);
+}
+
+[data-theme="light"] .brk-tabla tbody tr:nth-child(even) {
+    background: rgba(15, 23, 42, 0.03);
+}
+
+.brk-tabla .brk-izq {
+    text-align: left;
+}
+
+.brk-pos-celda {
+    width: 6%;
+    font-family: 'Exo 2', sans-serif;
+    font-size: 2.4vh;
+    font-weight: 800;
+    color: var(--text-secondary);
+}
+
+.brk-tabla tbody tr.brk-fila-1 td {
+    background: var(--brk-acento-suave);
+}
+
+.brk-tabla tbody tr.brk-fila-1 .brk-pos-celda,
+.brk-tabla tbody tr.brk-fila-2 .brk-pos-celda,
+.brk-tabla tbody tr.brk-fila-3 .brk-pos-celda {
+    color: var(--brk-acento);
+}
+
+.brk-celda-destacada {
+    color: var(--brk-acento);
+    font-weight: 700;
+}
+
+.brk-tabla-vacia {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ---------- Pie con puntos del carrusel ---------- */
+
+.brk-footer {
+    display: flex;
+    align-items: center;
+    gap: 1.2vw;
+    min-height: 3.2vh;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.35vh;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+}
+
+.brk-puntos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45vw;
+}
+
+.brk-punto {
+    padding: 0.5vh 0.9vw;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 1.3vh;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.brk-punto:hover {
+    border-color: var(--brk-acento);
+    color: var(--text-primary);
+}
+
+.brk-punto.activo {
+    background: var(--brk-acento);
+    border-color: var(--brk-acento);
+    color: #04070d;
+}
+
+.brk-actualizado {
+    margin-left: auto;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    opacity: 0.85;
+}
+
+.brk-ayuda {
+    flex-shrink: 0;
+    opacity: 0.7;
+}
+
+.brk-ayuda--pausa {
+    color: var(--neon-orange);
+    opacity: 1;
+    font-weight: 700;
+}
+
+/* ---------- Error de datos ---------- */
+
+.brk-error {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.2vh;
+    padding: 2vw;
+    text-align: center;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.9vh;
+    color: var(--text-secondary);
+}
+
+.brk-error strong {
+    font-family: 'Exo 2', sans-serif;
+    font-size: 2.8vh;
+    color: var(--neon-red);
+}
+
+.brk-error code {
+    color: var(--brk-acento);
+}
+
+/* ---------- Ajustes para pantallas chicas ---------- */
+
+@media (max-width: 900px) {
+    .brk-app {
+        gap: 8px;
+        padding: 8px;
+    }
+
+    .brk-header {
+        grid-template-columns: 1fr;
+        gap: 8px;
+        padding: 8px 10px;
+    }
+
+    .brk-brand {
+        justify-self: center;
+        align-items: center;
+        text-align: center;
+    }
+
+    .brk-brand-mark {
+        font-size: 20px;
+    }
+
+    .brk-brand-sub {
+        font-size: 10px;
+    }
+
+    .brk-header-centro h1 {
+        font-size: 24px;
+        white-space: normal;
+    }
+
+    .brk-reloj {
+        justify-self: center;
+        align-items: center;
+        flex-direction: row;
+        gap: 8px;
+    }
+
+    .brk-reloj-hora {
+        font-size: 24px;
+    }
+
+    .brk-nota {
+        font-size: 13px;
+    }
+
+    .brk-slide {
+        overflow-y: auto;
+    }
+
+    .brk-bracket {
+        overflow-x: auto;
+        padding-bottom: 6px;
+    }
+
+    .brk-ronda {
+        flex: 0 0 170px;
+    }
+
+    .brk-campeon {
+        flex: 0 0 150px;
+    }
+
+    .brk-ronda-titulo,
+    .brk-jugador-nombre {
+        font-size: 13px;
+    }
+
+    .brk-jugador-puntos {
+        font-size: 15px;
+    }
+
+    .brk-grupos-filas,
+    .brk-cruces-lista {
+        grid-template-columns: 1fr;
+    }
+
+    .brk-tabla {
+        font-size: 13px;
+    }
+
+    .brk-tabla thead th {
+        padding: 6px 8px;
+        font-size: 11px;
+    }
+
+    .brk-tabla tbody td {
+        padding: 7px 8px;
+        font-size: 13px;
+    }
+
+    .brk-pos-celda {
+        font-size: 15px;
+    }
+
+    .brk-footer {
+        flex-wrap: wrap;
+        font-size: 11px;
+    }
+
+    .brk-ayuda {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .brk-slide {
+        transition: none;
+        transform: none;
+    }
+
+    .brk-cambio {
+        animation: none;
+    }
+}
+
