@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
-    <title>Administración de horarios · WebLiga</title>
+    <title>Administración del evento · WebLiga</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -24,11 +24,12 @@
         <header class="admin-header">
             <div class="admin-brand">
                 <span class="admin-kicker">WEBLIGA 2026</span>
-                <h1>Administración de horarios</h1>
-                <p>Los cambios se publican al instante en el tablero y en los celulares.</p>
+                <h1>Administración del evento</h1>
+                <p>Los cambios se publican al instante en el tablero, los celulares y la segunda TV.</p>
             </div>
             <div class="admin-header-actions">
                 <a class="admin-button ghost" href="index.html" target="_blank" rel="noopener">Ver tablero</a>
+                <a class="admin-button ghost" href="brackets.html" target="_blank" rel="noopener">2.ª TV</a>
                 <a class="admin-button ghost" href="turnero.html" target="_blank" rel="noopener">Turnero</a>
                 <a class="admin-button ghost" href="qr.html" target="_blank" rel="noopener">Ver QR</a>
                 <button type="button" class="admin-button ghost" id="themeToggle">🌙 Modo Oscuro</button>
@@ -40,7 +41,8 @@
             <strong>Falta configurar Supabase.</strong>
             <p>
                 Completá <code>supabase-config.js</code> y ejecutá el SQL de
-                <code>supabase/schema.sql</code> y <code>supabase/avisos.sql</code>.
+                <code>supabase/schema.sql</code>, <code>supabase/avisos.sql</code> y
+                <code>supabase/llaves.sql</code>.
                 La guía paso a paso está en <code>GUIA-SUPABASE.md</code>.
             </p>
         </div>
@@ -49,8 +51,8 @@
             <div class="admin-login-info">
                 <h2>Ingresar como administrador</h2>
                 <p>
-                    Solo la cuenta de administrador puede modificar horarios.
-                    Los participantes no necesitan iniciar sesión.
+                    Solo la cuenta de administrador puede modificar horarios, avisos
+                    y la segunda pantalla. Los participantes no necesitan iniciar sesión.
                 </p>
             </div>
             <form id="loginForm" class="admin-form" novalidate>
@@ -91,6 +93,35 @@
                     <p>Guardá cada fila. El tablero se actualiza solo, sin recargar la página.</p>
                 </div>
                 <div id="adminRows" class="admin-rows"></div>
+            </section>
+
+            <section class="admin-card" id="llavesCard">
+                <div class="admin-card-header">
+                    <h2>Llaves y posiciones (2.ª TV)</h2>
+                    <p>
+                        Editá la pantalla de <a href="brackets.html" target="_blank" rel="noopener">la segunda TV</a>.
+                        Al guardar, los cambios aparecen al instante, sin recargar ni volver a subir la web.
+                    </p>
+                </div>
+
+                <div class="admin-llaves-top">
+                    <label for="llavesCategoria">Pantalla
+                        <select id="llavesCategoria"></select>
+                    </label>
+                    <label for="llavesRotacion">Segundos por pantalla
+                        <input type="number" id="llavesRotacion" min="5" max="300" step="1" inputmode="numeric">
+                    </label>
+                    <a class="admin-button ghost" href="brackets.html" target="_blank" rel="noopener">Ver 2.ª TV</a>
+                </div>
+
+                <div id="llavesEditor" class="admin-llaves-editor"></div>
+
+                <div class="admin-actions admin-llaves-acciones">
+                    <button type="button" class="admin-button primary" id="llavesGuardar">Guardar en la 2.ª TV</button>
+                    <button type="button" class="admin-button ghost" id="llavesRecargar">Recargar</button>
+                </div>
+                <p class="admin-error" id="llavesError" hidden></p>
+                <p class="admin-muted admin-llaves-info" id="llavesInfo"></p>
             </section>
 
             <section class="admin-card">
@@ -177,6 +208,7 @@
     <script src="lib/supabase.js"></script>
     <script src="supabase-config.js"></script>
     <script src="datos.js"></script>
+    <script src="brackets-data.js"></script>
     <script src="lib/qrcode-generator.js"></script>
     <script src="horarios-sync.js"></script>
     <script src="qr-comun.js"></script>

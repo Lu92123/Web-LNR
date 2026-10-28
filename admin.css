@@ -161,6 +161,14 @@ body.admin-page {
     font-size: 13px;
 }
 
+.admin-card-header p a,
+.admin-muted a {
+    color: var(--neon-cyan);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
 /* ---------- Avisos ---------- */
 
 .admin-banner {
@@ -508,6 +516,327 @@ body.admin-page {
     border-color: var(--neon-orange);
 }
 
+/* ---------- Editor de llaves (segunda TV) ---------- */
+
+.admin-llaves-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 14px 18px;
+    margin-bottom: 16px;
+    padding: 14px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 9px;
+}
+
+.admin-llaves-top label {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    color: var(--text-secondary);
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+.admin-llaves-top select,
+.admin-llaves-top input {
+    min-height: 40px;
+    padding: 8px 10px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 7px;
+    font-family: inherit;
+    font-size: 14px;
+}
+
+.admin-llaves-top select {
+    min-width: 210px;
+}
+
+.admin-llaves-top input[type="number"] {
+    width: 130px;
+}
+
+.admin-llaves-top select:focus,
+.admin-llaves-top input:focus,
+.admin-llaves-campo input:focus,
+.admin-llaves-campo select:focus,
+.admin-llaves-celda:focus {
+    outline: 2px solid var(--neon-cyan);
+    outline-offset: 1px;
+}
+
+.admin-llaves-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-bottom: 16px;
+}
+
+.admin-llaves-ficha,
+.admin-llaves-bloque {
+    padding: 14px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 9px;
+}
+
+.admin-llaves-ficha {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.admin-llaves-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+    gap: 12px;
+}
+
+.admin-llaves-campo {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    color: var(--text-secondary);
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+.admin-llaves-campo.ancho {
+    grid-column: 1 / -1;
+}
+
+.admin-llaves-campo input,
+.admin-llaves-campo select {
+    width: 100%;
+    min-height: 38px;
+    padding: 7px 9px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 7px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0;
+}
+
+.admin-llaves-campo input[type="color"] {
+    padding: 3px;
+    cursor: pointer;
+}
+
+.admin-llaves-tipo {
+    align-self: flex-start;
+    margin-top: 0;
+}
+
+.admin-llaves-bloque-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.admin-llaves-bloque-head h3 {
+    font-family: 'Exo 2', sans-serif;
+    font-size: 17px;
+    color: var(--text-primary);
+}
+
+.admin-llaves-ronda,
+.admin-llaves-grupo {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-color);
+}
+
+.admin-llaves-ronda:first-of-type,
+.admin-llaves-grupo:first-of-type {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+}
+
+.admin-llaves-ronda-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.admin-llaves-ronda-head input {
+    flex: 1 1 220px;
+    min-height: 38px;
+    padding: 7px 9px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 7px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.admin-llaves-ronda-nombre {
+    text-transform: uppercase;
+}
+
+.admin-llaves-partidos {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    margin-top: 9px;
+}
+
+.admin-llaves-partido {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 10px;
+    padding: 10px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+}
+
+.admin-llaves-partido-campos {
+    flex: 1 1 560px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 9px;
+    min-width: 0;
+}
+
+.admin-llaves-partido .admin-button {
+    min-height: 38px;
+    padding: 7px 10px;
+    font-size: 12.5px;
+}
+
+.admin-llaves-quitar {
+    color: var(--neon-orange);
+    border-color: var(--neon-orange);
+}
+
+.admin-llaves-quitar:hover {
+    color: var(--bg-tertiary);
+    background: var(--neon-orange);
+    border-color: var(--neon-orange);
+}
+
+.admin-llaves-tabla-contenedor {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 9px;
+}
+
+.admin-llaves-tabla-wrap {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.admin-llaves-tabla {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.admin-llaves-tabla th {
+    padding: 7px 6px;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    text-align: center;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.admin-llaves-tabla td {
+    padding: 5px 4px;
+    border-bottom: 1px solid var(--border-color);
+    text-align: center;
+}
+
+.admin-llaves-tabla tr:last-child td {
+    border-bottom: 0;
+}
+
+.admin-llaves-tabla-num {
+    width: 32px;
+    color: var(--text-secondary);
+    font-weight: 700;
+}
+
+.admin-llaves-tabla-accion {
+    width: 36px;
+}
+
+.admin-llaves-tabla .admin-button {
+    min-height: 32px;
+    padding: 2px 8px;
+    font-size: 15px;
+    line-height: 1;
+}
+
+.admin-llaves-celda {
+    width: 100%;
+    min-width: 72px;
+    min-height: 34px;
+    padding: 5px 7px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 13px;
+}
+
+.admin-llaves-tabla-vacia {
+    padding: 14px !important;
+    color: var(--text-secondary);
+    font-size: 12.5px;
+    font-style: italic;
+}
+
+.admin-llaves-acciones {
+    margin-top: 4px;
+}
+
+.admin-llaves-info {
+    margin-top: 10px;
+}
+
+.admin-llaves-info-alerta {
+    color: var(--neon-orange);
+}
+
+.admin-llaves-info-error {
+    color: var(--neon-red);
+    font-weight: 600;
+}
+
+.admin-llaves-dirty .admin-card-header h2::after {
+    content: ' • sin guardar';
+    color: var(--neon-orange);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
 /* ---------- QR ---------- */
 
 .admin-qr-content {
@@ -644,6 +973,34 @@ body.admin-page {
 
     .admin-row-actions .admin-button {
         min-height: 44px;
+    }
+
+    .admin-llaves-top {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .admin-llaves-top select,
+    .admin-llaves-top input[type="number"],
+    .admin-llaves-top .admin-button {
+        width: 100%;
+    }
+
+    .admin-llaves-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-llaves-partido-campos {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .admin-llaves-partido .admin-button {
+        width: 100%;
+    }
+
+    .admin-llaves-acciones {
+        display: grid;
+        grid-template-columns: 1fr;
     }
 
     .admin-qr-content {

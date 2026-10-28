@@ -71,6 +71,10 @@ Tiempo estimado de puesta en marcha: **20 a 30 minutos**, una sola vez.
 7. Repetí lo mismo con el archivo `supabase/avisos.sql` (reemplazando las
    **3 apariciones de `ADMIN_EMAIL`** por el mismo correo) para habilitar los
    avisos del tablero. Verificá que aparezca la tabla `avisos`.
+8. Repetí lo mismo con el archivo `supabase/llaves.sql` (reemplazando las
+   **3 apariciones de `ADMIN_EMAIL`** por el mismo correo) para habilitar la
+   segunda pantalla (`brackets.html`). Verificá que aparezca la tabla `llaves`
+   con una fila.
 
 Qué hace ese SQL:
 
@@ -84,6 +88,12 @@ El `avisos.sql` crea la tabla `avisos` (una sola fila) para el aviso de
 notificaciones importantes que se escribe desde el panel y aparece en el
 tablero. Si no lo ejecutás, el resto sigue funcionando; solo se muestra un
 mensaje avisando que falta ese paso.
+
+El `llaves.sql` crea la tabla `llaves` (una sola fila con un documento JSON)
+para la pantalla de llaves y posiciones de la segunda TV. Se edita desde
+`admin.html` y se publica al instante en `brackets.html`. Si no lo ejecutás, el
+tablero y los avisos siguen funcionando; el panel de llaves muestra un aviso
+indicando que falta la tabla.
 
 > Si más adelante cambiás el correo del administrador, volvé a ejecutar el mismo
 > SQL con el correo nuevo. Las políticas se recrean sin borrar los datos.
@@ -189,6 +199,10 @@ navegador). En el celular, cerrá y volvé a abrir la pestaña.
    cambio aparezca **sin recargar**.
 5. Marcá un evento como **Finalizado** y confirmá que se vea el cartel.
 6. Tocá **Restablecer** en esa fila para volver al horario original.
+7. Abrí `brackets.html` (la segunda TV). En el panel, tarjeta **Llaves y
+   posiciones (2.ª TV)**, elegí una pantalla, cambiá un título y tocá
+   **Guardar en la 2.ª TV**: tiene que cambiar en la TV **sin recargar**.
+8. Probá también **Recargar** y el campo **Segundos por pantalla**.
 
 Si algo falla, mirá la sección [Solución de problemas](#solución-de-problemas).
 
@@ -242,6 +256,28 @@ escanearlas con un celular antes del evento.
 
 ---
 
+## Segunda pantalla: llaves y posiciones
+
+La pantalla `brackets.html` se edita desde el mismo panel, sin tocar código ni
+volver a subir la web.
+
+- En `admin.html`, tarjeta **Llaves y posiciones (2.ª TV)**.
+- Elegí la pantalla (Mini Sumo, Sumo, Fútbol, Sigue Líneas, Liga Nacional) y
+  editá títulos, rondas, partidos, puntos, grupos, tablas y cruces.
+- **Segundos por pantalla** controla la rotación del carrusel (5 a 300).
+- **Guardar en la 2.ª TV** publica al instante: la TV cambia sola, sin recargar.
+- **Recargar** trae lo último de la nube y descarta los cambios sin guardar.
+- El pie de `brackets.html` muestra la fecha y hora real del último guardado.
+
+Solo la cuenta administrador puede guardar. Los invitados y las TVs únicamente
+leen. Si la nube está vacía, el panel arranca con los datos de ejemplo de
+`brackets-data.js`; al guardar quedan publicados. Si se corta internet, la TV
+sigue con la última copia y se actualiza al volver la conexión.
+
+La guía detallada de la pantalla está en [`GUIA-BRACKETS.md`](GUIA-BRACKETS.md).
+
+---
+
 ## Lista de verificación para el día del evento
 
 - [ ] Entrar a Supabase y confirmar que el proyecto **no esté pausado**.
@@ -249,6 +285,7 @@ escanearlas con un celular antes del evento.
 - [ ] Confirmar que el indicador diga **EN VIVO**.
 - [ ] Hacer un cambio de prueba y verlo en la TV y en un celular.
 - [ ] Restablecer el cambio de prueba.
+- [ ] Abrir `brackets.html` y probar un cambio desde el panel de llaves.
 - [ ] Desactivar la suspensión de la computadora principal y dejarla enchufada.
 - [ ] Verificar que la TV y los celulares tengan datos móviles o Wi-Fi.
 - [ ] Escanear el QR impreso y confirmar que abre el tablero.
@@ -313,7 +350,9 @@ El correo con el que iniciaste sesión no coincide con el de las políticas.
 1. Abrí **Authentication → Users** y mirá el correo exacto.
 2. Ejecutá de nuevo `supabase/schema.sql` reemplazando `ADMIN_EMAIL` por ese
    correo.
-3. Recargá `admin.html` e intentá otra vez (no hace falta cerrar sesión).
+3. Si usás avisos y segunda pantalla, repetí con `supabase/avisos.sql` y
+   `supabase/llaves.sql`.
+4. Recargá `admin.html` e intentá otra vez (no hace falta cerrar sesión).
 
 ### El cambio se guarda pero la TV no se actualiza
 
@@ -322,6 +361,17 @@ El correo con el que iniciaste sesión no coincide con el de las políticas.
 - Si el badge dice **EN VIVO** pero el dato no cambia, recargá la TV una vez.
 - En redes muy restrictivas, Realtime puede estar bloqueado; el respaldo de 30
   segundos igual mantiene todo sincronizado.
+
+### La segunda TV no cambia o dice que falta la tabla
+
+- Si el panel muestra **La tabla de llaves todavía no existe**, ejecutá
+  `supabase/llaves.sql` en el SQL Editor (reemplazando `ADMIN_EMAIL`).
+- Si dice **La cuenta no tiene permisos**, revisá que el correo de
+  `llaves.sql` sea el mismo de `schema.sql` y del usuario que inició sesión.
+- Si `brackets.html` no cambia pero el panel guardó, esperá 30 segundos
+  (respaldo) y recargá la TV una vez. Verificá que la TV tenga internet.
+- Si la pantalla muestra datos viejos, tocá **Recargar** en el panel y volvé a
+  guardar.
 
 ### El proyecto está pausado
 
@@ -364,8 +414,9 @@ volvé a guardar.
 - **Desactivá el registro público** (paso 3) para que nadie cree cuentas.
 - **No compartas `admin.html`** ni la contraseña. El QR debe apuntar siempre a
   `index.html`.
-- Los datos que se guardan son únicamente horarios y el correo de quien hizo el
-  cambio. No se guardan datos de los participantes.
+- Los datos que se guardan son únicamente horarios, el aviso del tablero, el
+  documento de la segunda pantalla y el correo de quien hizo el cambio. No se
+  guardan datos de los participantes.
 
 ---
 
@@ -388,12 +439,15 @@ entrando al panel unos días antes del evento.
 | Archivo | Función |
 | --- | --- |
 | `index.html` | Tablero público (TV y celulares). |
+| `brackets.html` / `brackets.js` / `brackets-data.js` | Segunda TV: llaves y posiciones. |
 | `script.js` | Render, reloj, mapa y sincronización del tablero. |
 | `horarios-sync.js` | Cliente de Supabase: lectura, Realtime, polling, caché y escritura. |
 | `supabase-config.js` | URL, clave pública y dirección del QR. |
 | `admin.html` / `admin.js` / `admin.css` | Panel de administración con login. |
 | `qr.html` / `qr.js` / `qr-comun.js` | Pantalla e impresión del QR. |
-| `supabase/schema.sql` | Tabla, RLS, trigger y Realtime. |
+| `supabase/schema.sql` | Tabla de horarios, RLS, trigger y Realtime. |
+| `supabase/avisos.sql` | Tabla del aviso del tablero. |
+| `supabase/llaves.sql` | Tabla del documento de la segunda pantalla. |
 | `lib/supabase.js` | SDK de Supabase (versión fija, sin CDN). |
 | `lib/qrcode-generator.js` | Generador de QR local. |
 | `datos.js` | Horarios base y helpers de hora. |
@@ -404,8 +458,10 @@ entrando al panel unos días antes del evento.
 
 Si algún día querés dejar de usar Supabase:
 
-1. Borrá las líneas de `<script>` de Supabase en `index.html` y `admin.html`.
-2. El tablero seguirá funcionando con los horarios de `datos.js`.
+1. Borrá las líneas de `<script>` de Supabase en `index.html`, `admin.html` y
+   `brackets.html`.
+2. El tablero seguirá funcionando con los horarios de `datos.js` y la segunda
+   pantalla con `brackets-data.js`.
 3. Los cambios guardados quedan en Supabase; podés exportarlos desde el panel o
    descargar el JSON de respaldo desde `admin.html`.
 
@@ -413,6 +469,8 @@ Para borrar todos los cambios y volver a los horarios base:
 
 ```sql
 delete from public.horarios;
+delete from public.avisos;
+delete from public.llaves;
 ```
 
 O usá el botón **Restablecer todo** del panel de administración (hace lo mismo

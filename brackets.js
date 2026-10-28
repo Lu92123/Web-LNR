@@ -14,6 +14,13 @@
     const SEGUNDOS_POR_DEFECTO = 18;
     const SEGUNDOS_MINIMOS = 5;
 
+    const DATOS_ESTATICOS = typeof bracketsEvento !== 'undefined' && bracketsEvento
+        ? clonar(bracketsEvento)
+        : null;
+
+    let documento = DATOS_ESTATICOS ? clonar(DATOS_ESTATICOS) : null;
+    let firmaAplicada = null;
+
     let categorias = [];
     let indiceActual = 0;
     let duracionPantalla = SEGUNDOS_POR_DEFECTO * 1000;
@@ -54,13 +61,12 @@
         actualizarReloj();
         setInterval(actualizarReloj, 1000);
 
-        if (typeof bracketsEvento === 'undefined' || !bracketsEvento ||
-            !Array.isArray(bracketsEvento.categorias) || !bracketsEvento.categorias.length) {
+        if (!documento || !Array.isArray(documento.categorias) || !documento.categorias.length) {
             mostrarErrorDatos();
             return;
         }
 
-        categorias = bracketsEvento.categorias.filter(function (categoria) {
+        categorias = documento.categorias.filter(function (categoria) {
             return categoria && categoria.tipo;
         });
 
@@ -72,12 +78,7 @@
         duracionPantalla = calcularDuracion();
         restanteCiclo = duracionPantalla;
 
-        const actualizado = document.getElementById('brkActualizado');
-        if (actualizado) {
-            actualizado.textContent = bracketsEvento.actualizadoEn
-                ? 'Actualizado: ' + bracketsEvento.actualizadoEn
-                : '';
-        }
+        actualizarPie();
 
         construirPantallas();
         construirPuntos();
@@ -88,6 +89,8 @@
 
         document.addEventListener('keydown', manejarTeclado);
         document.addEventListener('visibilitychange', manejarVisibilidad);
+
+        iniciarSincronizacionLlaves();
     }
 
     function aplicarTema() {
@@ -103,7 +106,7 @@
     function calcularDuracion() {
         const params = new URLSearchParams(window.location.search);
         const segundosUrl = parseInt(params.get('seg'), 10);
-        const segundosDatos = Number(bracketsEvento.rotacionSegundos);
+        const segundosDatos = Number(documento.rotacionSegundos);
 
         let segundos = SEGUNDOS_POR_DEFECTO;
         if (Number.isFinite(segundosDatos) && segundosDatos >= SEGUNDOS_MINIMOS) {
@@ -134,6 +137,121 @@
             '<span>Revisá <code>brackets-data.js</code>: tiene que existir ' +
             '<code>bracketsEvento.categorias</code> con al menos una categoría.</span>';
         mainEl.appendChild(mensaje);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Datos en vivo desde Supabase                                       */
+    /* ------------------------------------------------------------------ */
+
+    function iniciarSincronizacionLlaves() {
+        if (!window.HorariosSync || typeof window.HorariosSync.iniciarLlaves !== 'function') {
+            return;
+        }
+
+        if (typeof window.HorariosSync.estaConfigurado === 'function' &&
+            !window.HorariosSync.estaConfigurado()) {
+            return;
+        }
+
+        window.HorariosSync.iniciarLlaves({
+            alCambiar: function (registro) {
+                aplicarLlaves(registro);
+            }
+        }).catch(function (error) {
+            console.warn('WebLiga: no se pudo iniciar la sincronización de llaves.', error);
+        });
+    }
+
+    function aplicarLlaves(registro) {
+        const datos = registro && registro.datos;
+
+        if (!datos || !Array.isArray(datos.categorias) || !datos.categorias.length) {
+            return false;
+        }
+
+        const firmaNueva = JSON.stringify(datos);
+
+        if (firmaNueva === firmaAplicada) {
+            actualizarPie(registro);
+            return true;
+        }
+
+        firmaAplicada = firmaNueva;
+
+        const anterior = categorias[indiceActual];
+        const idAnterior = anterior ? (anterior.id || anterior.titulo) : null;
+
+        documento = Object.assign({}, documento, datos);
+
+        const nuevasCategorias = documento.categorias.filter(function (categoria) {
+            return categoria && categoria.tipo;
+        });
+
+        if (!nuevasCategorias.length) return false;
+
+        categorias = nuevasCategorias;
+        duracionPantalla = calcularDuracion();
+
+        construirPantallas();
+        construirPuntos();
+
+        let indiceNuevo = 0;
+
+        if (idAnterior) {
+            const encontrado = categorias.findIndex(function (categoria) {
+                return (categoria.id || categoria.titulo) === idAnterior;
+            });
+
+            if (encontrado >= 0) {
+                indiceNuevo = encontrado;
+            } else {
+                indiceNuevo = Math.min(indiceActual, categorias.length - 1);
+            }
+        }
+
+        const estabaPausado = pausado;
+
+        mostrarPantalla(indiceNuevo, false);
+        iniciarCicloCompleto();
+
+        if (estabaPausado) pausarCiclo();
+
+        actualizarPie(registro);
+        return true;
+    }
+
+    function actualizarPie(registro) {
+        const actualizado = document.getElementById('brkActualizado');
+        if (!actualizado) return;
+
+        if (registro && registro.actualizadoEn) {
+            actualizado.textContent = 'Actualizado: ' + formatearFechaHora(registro.actualizadoEn);
+            return;
+        }
+
+        if (documento && documento.actualizadoEn) {
+            actualizado.textContent = 'Actualizado: ' + documento.actualizadoEn;
+            return;
+        }
+
+        actualizado.textContent = 'Datos locales';
+    }
+
+    function formatearFechaHora(fecha) {
+        try {
+            const valor = new Date(fecha);
+            if (isNaN(valor.getTime())) return String(fecha);
+
+            return valor.toLocaleString('es-AR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch (e) {
+            return String(fecha);
+        }
     }
 
     /* ------------------------------------------------------------------ */
@@ -573,6 +691,10 @@
         if (clase) elemento.className = clase;
         if (texto !== undefined && texto !== null) elemento.textContent = texto;
         return elemento;
+    }
+
+    function clonar(valor) {
+        return JSON.parse(JSON.stringify(valor === undefined ? null : valor));
     }
 
     function numeroONull(valor) {

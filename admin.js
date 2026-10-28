@@ -17,6 +17,17 @@
     let mostrandoPanel = false;
     let toastTimer = null;
 
+    /* Editor de llaves de la segunda TV */
+    let llavesTrabajo = null;
+    let llavesFirmaAplicada = null;
+    let llavesActualizadoEn = null;
+    let llavesActualizadoPor = null;
+    let llavesIndiceSeleccionado = 0;
+    let llavesCambios = false;
+    let llavesRemotoPendiente = null;
+    let llavesSincronizacionActiva = false;
+    let llavesErrorTabla = '';
+
     document.addEventListener('DOMContentLoaded', iniciar);
 
     async function iniciar() {
@@ -107,6 +118,11 @@
         const downloadQrBtn = document.getElementById('downloadQrBtn');
         const adminRows = document.getElementById('adminRows');
         const avisoBtn = document.getElementById('avisoBtn');
+        const llavesEditor = document.getElementById('llavesEditor');
+        const llavesCategoria = document.getElementById('llavesCategoria');
+        const llavesRotacion = document.getElementById('llavesRotacion');
+        const llavesGuardar = document.getElementById('llavesGuardar');
+        const llavesRecargar = document.getElementById('llavesRecargar');
 
         loginForm.addEventListener('submit', iniciarSesion);
         logoutBtn.addEventListener('click', cerrarSesion);
@@ -120,6 +136,19 @@
         adminRows.addEventListener('input', marcarCambios);
         adminRows.addEventListener('change', marcarCambios);
         adminRows.addEventListener('click', manejarAccionFila);
+
+        if (llavesCategoria) llavesCategoria.addEventListener('change', cambiarCategoriaLlaves);
+        if (llavesRotacion) {
+            llavesRotacion.addEventListener('input', marcarRotacionLlaves);
+            llavesRotacion.addEventListener('change', marcarRotacionLlaves);
+        }
+        if (llavesGuardar) llavesGuardar.addEventListener('click', guardarLlavesClick);
+        if (llavesRecargar) llavesRecargar.addEventListener('click', recargarLlavesClick);
+        if (llavesEditor) {
+            llavesEditor.addEventListener('input', manejarEntradaLlaves);
+            llavesEditor.addEventListener('change', manejarEntradaLlaves);
+            llavesEditor.addEventListener('click', manejarClickLlaves);
+        }
 
         configurarMensajesRapidos();
     }
@@ -190,6 +219,7 @@
 
     function cerrarPanelPorSesion() {
         HorariosSync.detener();
+        if (typeof HorariosSync.detenerLlaves === 'function') HorariosSync.detenerLlaves();
         sincronizacionActiva = false;
         mostrandoPanel = false;
         sesion = null;
@@ -197,11 +227,29 @@
         firmaServidor = null;
         hayCambiosSinGuardar = false;
 
+        llavesSincronizacionActiva = false;
+        llavesTrabajo = null;
+        llavesFirmaAplicada = null;
+        llavesActualizadoEn = null;
+        llavesActualizadoPor = null;
+        llavesCambios = false;
+        llavesRemotoPendiente = null;
+        llavesErrorTabla = '';
+
         document.getElementById('adminPanel').hidden = true;
         document.getElementById('loginCard').hidden = false;
         document.getElementById('logoutBtn').hidden = true;
         document.getElementById('adminRows').innerHTML = '';
         document.getElementById('pendingBanner').hidden = true;
+
+        const llavesEditor = document.getElementById('llavesEditor');
+        const llavesCategoria = document.getElementById('llavesCategoria');
+        const llavesInfo = document.getElementById('llavesInfo');
+        const llavesError = document.getElementById('llavesError');
+        if (llavesEditor) llavesEditor.innerHTML = '';
+        if (llavesCategoria) llavesCategoria.innerHTML = '';
+        if (llavesInfo) llavesInfo.textContent = '';
+        if (llavesError) llavesError.hidden = true;
 
         const error = document.getElementById('loginError');
         error.hidden = true;
@@ -235,6 +283,7 @@
         }
 
         cargarAvisoPanel();
+        cargarLlavesPanel();
     }
 
     /* ------------------------------------------------------------------ */
@@ -422,6 +471,1083 @@
             boton.disabled = false;
             boton.textContent = 'Guardar aviso';
         }
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Llaves y posiciones de la segunda TV                               */
+    /* ------------------------------------------------------------------ */
+
+    async function cargarLlavesPanel() {
+        const info = document.getElementById('llavesInfo');
+
+        if (!window.HorariosSync || typeof HorariosSync.iniciarLlaves !== 'function') {
+            if (info) info.textContent = 'No se cargó el módulo de llaves. Actualizá la página.';
+            return;
+        }
+
+        if (!HorariosSync.estaConfigurado()) {
+            usarDatosEstaticos();
+            if (info) info.textContent = 'Supabase no está configurado: se muestran los datos locales.';
+            return;
+        }
+
+        try {
+            if (!llavesSincronizacionActiva) {
+                llavesSincronizacionActiva = true;
+                await HorariosSync.iniciarLlaves({ alCambiar: recibirLlavesNube });
+            } else {
+                await HorariosSync.descargarLlaves(false);
+            }
+        } catch (error) {
+            console.warn('No se pudieron iniciar las llaves:', error);
+        }
+
+        if (!llavesTrabajo) {
+            const cache = typeof HorariosSync.leerCacheLlaves === 'function'
+                ? HorariosSync.leerCacheLlaves()
+                : null;
+
+            if (cache && documentoConCategorias(cache.datos)) {
+                aplicarRegistroLlaves(cache, 'cache');
+            } else {
+                usarDatosEstaticos();
+            }
+        }
+
+        const problema = typeof HorariosSync.problemaLlaves === 'function'
+            ? HorariosSync.problemaLlaves()
+            : '';
+
+        if (problema) llavesErrorTabla = mensajeProblemaLlaves(problema);
+
+        actualizarInfoLlaves();
+    }
+
+    function recibirLlavesNube(registro) {
+        const datos = registro && registro.datos;
+
+        if (!documentoConCategorias(datos)) {
+            if (!llavesTrabajo) usarDatosEstaticos();
+            actualizarInfoLlaves();
+            return;
+        }
+
+        const firmaNueva = firmaLlaves(datos);
+
+        if (firmaNueva === llavesFirmaAplicada) {
+            llavesActualizadoEn = registro.actualizadoEn || llavesActualizadoEn;
+            llavesActualizadoPor = registro.actualizadoPor || llavesActualizadoPor;
+            actualizarInfoLlaves();
+            return;
+        }
+
+        if (llavesCambios) {
+            llavesRemotoPendiente = registro;
+            actualizarInfoLlaves();
+            return;
+        }
+
+        aplicarRegistroLlaves(registro, 'nube');
+    }
+
+    function usarDatosEstaticos() {
+        llavesTrabajo = normalizarDocumento(documentoEstatico());
+        llavesFirmaAplicada = null;
+        llavesCambios = false;
+        llavesRemotoPendiente = null;
+        llavesIndiceSeleccionado = 0;
+        renderizarLlaves();
+        actualizarInfoLlaves();
+    }
+
+    function aplicarRegistroLlaves(registro, origen) {
+        if (!registro || !documentoConCategorias(registro.datos)) return;
+
+        const anterior = categoriaLlavesActual();
+        const idAnterior = anterior ? (anterior.id || anterior.titulo) : null;
+
+        llavesTrabajo = normalizarDocumento(registro.datos);
+        llavesFirmaAplicada = firmaLlaves(registro.datos);
+        llavesActualizadoEn = registro.actualizadoEn || null;
+        llavesActualizadoPor = registro.actualizadoPor || null;
+        llavesCambios = false;
+        llavesRemotoPendiente = null;
+        llavesErrorTabla = '';
+        llavesIndiceSeleccionado = 0;
+
+        if (idAnterior) {
+            const encontrado = llavesTrabajo.categorias.findIndex(function (categoria) {
+                return (categoria.id || categoria.titulo) === idAnterior;
+            });
+
+            if (encontrado >= 0) llavesIndiceSeleccionado = encontrado;
+        }
+
+        if (llavesIndiceSeleccionado >= llavesTrabajo.categorias.length) {
+            llavesIndiceSeleccionado = 0;
+        }
+
+        renderizarLlaves();
+        actualizarInfoLlaves();
+    }
+
+    function renderizarLlaves() {
+        const select = document.getElementById('llavesCategoria');
+        const rotacion = document.getElementById('llavesRotacion');
+
+        if (!select || !rotacion) return;
+
+        select.innerHTML = '';
+
+        if (!llavesTrabajo) {
+            renderizarEditorLlaves();
+            return;
+        }
+
+        llavesTrabajo.categorias.forEach(function (categoria, indice) {
+            const opcion = document.createElement('option');
+            opcion.value = String(indice);
+            opcion.textContent = (categoria.titulo || 'Pantalla ' + (indice + 1)) +
+                (categoria.fase ? ' · ' + categoria.fase : '');
+            select.appendChild(opcion);
+        });
+
+        const maximo = Math.max(0, llavesTrabajo.categorias.length - 1);
+        if (llavesIndiceSeleccionado > maximo) llavesIndiceSeleccionado = maximo;
+
+        select.value = String(llavesIndiceSeleccionado);
+        rotacion.value = String(rotacionNormalizada(llavesTrabajo.rotacionSegundos));
+
+        renderizarEditorLlaves();
+        actualizarInfoLlaves();
+    }
+
+    function renderizarEditorLlaves() {
+        const editor = document.getElementById('llavesEditor');
+        if (!editor) return;
+
+        editor.innerHTML = '';
+
+        const categoria = categoriaLlavesActual();
+
+        if (!categoria) {
+            editor.appendChild(crear('p', 'admin-muted', 'No hay pantallas cargadas.'));
+            return;
+        }
+
+        editor.appendChild(crearFichaLlaves(categoria));
+
+        if (categoria.tipo === 'llaves') {
+            editor.appendChild(crearEditorRondasLlaves(categoria));
+            editor.appendChild(crearEditorCampeonLlaves(categoria));
+        } else if (categoria.tipo === 'grupos') {
+            editor.appendChild(crearEditorGruposLlaves(categoria));
+            editor.appendChild(crearEditorCrucesLlaves(categoria));
+        } else {
+            editor.appendChild(crearEditorTablaLlaves(categoria));
+        }
+    }
+
+    function crearFichaLlaves(categoria) {
+        const ficha = crear('div', 'admin-llaves-ficha');
+        const grid = crear('div', 'admin-llaves-grid');
+
+        grid.appendChild(crearCampoLlaves('Título', crearInputLlaves(
+            categoria.titulo, { ambito: 'comun', campo: 'titulo' }
+        )));
+
+        grid.appendChild(crearCampoLlaves('Nombre corto', crearInputLlaves(
+            categoria.corto, { ambito: 'comun', campo: 'corto' }
+        )));
+
+        grid.appendChild(crearCampoLlaves('Fase', crearInputLlaves(
+            categoria.fase, { ambito: 'comun', campo: 'fase' }
+        )));
+
+        grid.appendChild(crearCampoLlaves('Color', crearInputLlaves(
+            colorValido(categoria.acento) ? categoria.acento : '#00ffff',
+            { ambito: 'comun', campo: 'acento' },
+            { tipo: 'color' }
+        )));
+
+        grid.appendChild(crearCampoLlaves('Nota al pie', crearInputLlaves(
+            categoria.nota, { ambito: 'comun', campo: 'nota' },
+            { placeholder: 'Ej.: Eliminación directa · combates al mejor de 5' }
+        ), 'ancho'));
+
+        ficha.appendChild(grid);
+        ficha.appendChild(crear('span', 'admin-tag admin-llaves-tipo', 'Tipo: ' + etiquetaTipoLlaves(categoria.tipo)));
+
+        return ficha;
+    }
+
+    function crearEditorRondasLlaves(categoria) {
+        const bloque = crearBloqueLlaves('Rondas y partidos', '+ Ronda', 'add-ronda');
+        const rondas = Array.isArray(categoria.rondas) ? categoria.rondas : [];
+
+        if (!rondas.length) {
+            bloque.appendChild(crear('p', 'admin-muted', 'No hay rondas cargadas.'));
+        }
+
+        rondas.forEach(function (ronda, indiceRonda) {
+            const caja = crear('div', 'admin-llaves-ronda');
+            const cabecera = crear('div', 'admin-llaves-ronda-head');
+
+            cabecera.appendChild(crearInputLlaves(
+                ronda.nombre || '',
+                { ambito: 'ronda', ronda: String(indiceRonda), campo: 'nombre' },
+                { placeholder: 'Nombre de la ronda', clase: 'admin-llaves-ronda-nombre' }
+            ));
+
+            cabecera.appendChild(crearBotonLlaves(
+                'Quitar ronda', 'ghost admin-llaves-quitar', 'del-ronda', { ronda: String(indiceRonda) }
+            ));
+
+            caja.appendChild(cabecera);
+
+            const lista = crear('div', 'admin-llaves-partidos');
+            const partidos = Array.isArray(ronda.partidos) ? ronda.partidos : [];
+
+            if (!partidos.length) {
+                lista.appendChild(crear('p', 'admin-muted', 'Sin partidos en esta ronda.'));
+            }
+
+            partidos.forEach(function (partido, indicePartido) {
+                lista.appendChild(crearEditorPartidoLlaves(
+                    partido,
+                    { ambito: 'partido', ronda: String(indiceRonda), partido: String(indicePartido) },
+                    'del-partido'
+                ));
+            });
+
+            lista.appendChild(crearBotonLlaves(
+                '+ Partido', 'ghost', 'add-partido', { ronda: String(indiceRonda) }
+            ));
+
+            caja.appendChild(lista);
+            bloque.appendChild(caja);
+        });
+
+        return bloque;
+    }
+
+    function crearEditorCampeonLlaves(categoria) {
+        const bloque = crearBloqueLlaves('Campeón', null);
+        const campeon = categoria.campeon || {};
+        const grid = crear('div', 'admin-llaves-grid');
+
+        grid.appendChild(crearCampoLlaves('Equipo campeón', crearInputLlaves(
+            campeon.equipo, { ambito: 'campeon', campo: 'equipo' }, { placeholder: 'Por definir' }
+        )));
+
+        grid.appendChild(crearCampoLlaves('Detalle', crearInputLlaves(
+            campeon.detalle, { ambito: 'campeon', campo: 'detalle' }, { placeholder: 'Ej.: Mini Sumo · 2026' }
+        )));
+
+        bloque.appendChild(grid);
+        return bloque;
+    }
+
+    function crearEditorPartidoLlaves(partido, datosBase, accionQuitar) {
+        const datos = partido || {};
+        const caja = crear('div', 'admin-llaves-partido');
+        const grid = crear('div', 'admin-llaves-partido-campos');
+
+        grid.appendChild(crearCampoLlaves('Equipo A', crearInputLlaves(
+            datos.equipoA, Object.assign({}, datosBase, { campo: 'equipoA' }), { placeholder: 'Por definir' }
+        )));
+
+        grid.appendChild(crearCampoLlaves('Puntos A', crearInputLlaves(
+            datos.puntosA, Object.assign({}, datosBase, { campo: 'puntosA' }),
+            { tipo: 'number', min: '0', step: '1' }
+        )));
+
+        grid.appendChild(crearCampoLlaves('Equipo B', crearInputLlaves(
+            datos.equipoB, Object.assign({}, datosBase, { campo: 'equipoB' }), { placeholder: 'Por definir' }
+        )));
+
+        grid.appendChild(crearCampoLlaves('Puntos B', crearInputLlaves(
+            datos.puntosB, Object.assign({}, datosBase, { campo: 'puntosB' }),
+            { tipo: 'number', min: '0', step: '1' }
+        )));
+
+        grid.appendChild(crearCampoLlaves('Estado', crearSelectLlaves(
+            datos.estado || 'pendiente',
+            [['finalizado', 'Finalizado'], ['en_curso', 'En vivo'], ['pendiente', 'Pendiente']],
+            Object.assign({}, datosBase, { campo: 'estado' })
+        )));
+
+        grid.appendChild(crearCampoLlaves('Ganador', crearSelectLlaves(
+            datos.ganador || '',
+            [['', 'Automático (puntos)'], ['A', 'Equipo A'], ['B', 'Equipo B']],
+            Object.assign({}, datosBase, { campo: 'ganador' })
+        )));
+
+        caja.appendChild(grid);
+        caja.appendChild(crearBotonLlaves('Quitar', 'ghost admin-llaves-quitar', accionQuitar, datosBase));
+
+        return caja;
+    }
+
+    function crearEditorGruposLlaves(categoria) {
+        const bloque = crearBloqueLlaves('Grupos', '+ Grupo', 'add-grupo');
+        const grupos = Array.isArray(categoria.grupos) ? categoria.grupos : [];
+
+        if (!grupos.length) {
+            bloque.appendChild(crear('p', 'admin-muted', 'No hay grupos cargados.'));
+        }
+
+        grupos.forEach(function (grupo, indiceGrupo) {
+            const caja = crear('div', 'admin-llaves-grupo');
+            const cabecera = crear('div', 'admin-llaves-ronda-head');
+
+            cabecera.appendChild(crearInputLlaves(
+                grupo.nombre || '',
+                { ambito: 'grupo', grupo: String(indiceGrupo), campo: 'nombre' },
+                { placeholder: 'Nombre del grupo' }
+            ));
+
+            cabecera.appendChild(crearBotonLlaves(
+                'Quitar grupo', 'ghost admin-llaves-quitar', 'del-grupo', { grupo: String(indiceGrupo) }
+            ));
+
+            caja.appendChild(cabecera);
+            caja.appendChild(crearTablaEditableLlaves(
+                categoria.columnas,
+                Array.isArray(grupo.equipos) ? grupo.equipos : [],
+                { ambito: 'grupo-fila', grupo: String(indiceGrupo) },
+                'add-grupo-fila',
+                'del-grupo-fila',
+                '+ Equipo'
+            ));
+
+            bloque.appendChild(caja);
+        });
+
+        return bloque;
+    }
+
+    function crearEditorCrucesLlaves(categoria) {
+        const cruces = categoria.cruces || { titulo: 'CRUCES', partidos: [] };
+        const bloque = crearBloqueLlaves('Cruces eliminatorios', '+ Cruce', 'add-cruce');
+
+        bloque.appendChild(crearCampoLlaves('Título de los cruces', crearInputLlaves(
+            cruces.titulo, { ambito: 'cruces', campo: 'titulo' },
+            { placeholder: 'Ej.: SEMIFINALES' }
+        ), 'ancho'));
+
+        const lista = crear('div', 'admin-llaves-partidos');
+        const partidos = Array.isArray(cruces.partidos) ? cruces.partidos : [];
+
+        if (!partidos.length) {
+            lista.appendChild(crear('p', 'admin-muted', 'No hay cruces cargados.'));
+        }
+
+        partidos.forEach(function (partido, indiceCruce) {
+            lista.appendChild(crearEditorPartidoLlaves(
+                partido,
+                { ambito: 'cruce', cruce: String(indiceCruce) },
+                'del-cruce'
+            ));
+        });
+
+        bloque.appendChild(lista);
+        return bloque;
+    }
+
+    function crearEditorTablaLlaves(categoria) {
+        const bloque = crearBloqueLlaves('Filas de la tabla', null);
+
+        bloque.appendChild(crearTablaEditableLlaves(
+            categoria.columnas,
+            Array.isArray(categoria.filas) ? categoria.filas : [],
+            { ambito: 'tabla' },
+            'add-fila-tabla',
+            'del-fila-tabla',
+            '+ Fila'
+        ));
+
+        return bloque;
+    }
+
+    function crearTablaEditableLlaves(columnas, filas, contexto, accionAgregar, accionQuitar, textoAgregar) {
+        const contenedor = crear('div', 'admin-llaves-tabla-contenedor');
+        const listaColumnas = (Array.isArray(columnas) ? columnas : []).filter(function (columna) {
+            return columna && columna.clave && columna.clave !== 'pos';
+        });
+
+        if (!listaColumnas.length) {
+            listaColumnas.push({ clave: 'equipo', titulo: 'EQUIPO' });
+        }
+
+        const wrap = crear('div', 'admin-llaves-tabla-wrap');
+        const tabla = document.createElement('table');
+        tabla.className = 'admin-llaves-tabla';
+
+        const thead = document.createElement('thead');
+        const filaHead = document.createElement('tr');
+        filaHead.appendChild(crear('th', '', '#'));
+        listaColumnas.forEach(function (columna) {
+            filaHead.appendChild(crear('th', '', columna.titulo || columna.clave));
+        });
+        filaHead.appendChild(crear('th', '', ''));
+        thead.appendChild(filaHead);
+        tabla.appendChild(thead);
+
+        const tbody = document.createElement('tbody');
+        const listaFilas = Array.isArray(filas) ? filas : [];
+
+        if (!listaFilas.length) {
+            const filaVacia = document.createElement('tr');
+            const celda = document.createElement('td');
+            celda.colSpan = listaColumnas.length + 2;
+            celda.className = 'admin-llaves-tabla-vacia';
+            celda.textContent = 'Sin filas cargadas.';
+            filaVacia.appendChild(celda);
+            tbody.appendChild(filaVacia);
+        }
+
+        listaFilas.forEach(function (fila, indiceFila) {
+            const tr = document.createElement('tr');
+            tr.appendChild(crear('td', 'admin-llaves-tabla-num', String(indiceFila + 1)));
+
+            listaColumnas.forEach(function (columna) {
+                const td = document.createElement('td');
+                const valor = fila ? fila[columna.clave] : '';
+
+                td.appendChild(crearInputLlaves(
+                    valor,
+                    Object.assign({}, contexto, { fila: String(indiceFila), campo: columna.clave }),
+                    { clase: 'admin-llaves-celda' }
+                ));
+
+                tr.appendChild(td);
+            });
+
+            const tdAccion = document.createElement('td');
+            tdAccion.className = 'admin-llaves-tabla-accion';
+            tdAccion.appendChild(crearBotonLlaves(
+                '×',
+                'ghost admin-llaves-quitar',
+                accionQuitar,
+                Object.assign({}, contexto, { fila: String(indiceFila) })
+            ));
+
+            tr.appendChild(tdAccion);
+            tbody.appendChild(tr);
+        });
+
+        tabla.appendChild(tbody);
+        wrap.appendChild(tabla);
+        contenedor.appendChild(wrap);
+        contenedor.appendChild(crearBotonLlaves(textoAgregar, 'ghost', accionAgregar, contexto));
+
+        return contenedor;
+    }
+
+    function manejarEntradaLlaves(evento) {
+        const control = evento.target;
+        if (!control || !control.dataset || !control.dataset.ambito) return;
+
+        const categoria = categoriaLlavesActual();
+        if (!categoria) return;
+
+        const campo = control.dataset.campo;
+        if (!campo) return;
+
+        const datos = control.dataset;
+        const valor = control.value;
+
+        if (datos.ambito === 'comun') {
+            categoria[campo] = valor;
+        } else if (datos.ambito === 'ronda') {
+            const ronda = (categoria.rondas || [])[Number(datos.ronda)];
+            if (ronda) ronda[campo] = valor;
+        } else if (datos.ambito === 'partido') {
+            const ronda = (categoria.rondas || [])[Number(datos.ronda)];
+            const partido = ronda && Array.isArray(ronda.partidos)
+                ? ronda.partidos[Number(datos.partido)]
+                : null;
+            if (partido) cambiarCampoPartidoLlaves(partido, campo, valor);
+        } else if (datos.ambito === 'cruce') {
+            const partido = categoria.cruces && Array.isArray(categoria.cruces.partidos)
+                ? categoria.cruces.partidos[Number(datos.cruce)]
+                : null;
+            if (partido) cambiarCampoPartidoLlaves(partido, campo, valor);
+        } else if (datos.ambito === 'cruces') {
+            if (campo === 'titulo' && categoria.cruces) categoria.cruces.titulo = valor;
+        } else if (datos.ambito === 'campeon') {
+            if (!categoria.campeon || typeof categoria.campeon !== 'object') categoria.campeon = {};
+            categoria.campeon[campo] = valor;
+        } else if (datos.ambito === 'grupo') {
+            const grupo = (categoria.grupos || [])[Number(datos.grupo)];
+            if (grupo) grupo[campo] = valor;
+        } else if (datos.ambito === 'grupo-fila') {
+            const grupo = (categoria.grupos || [])[Number(datos.grupo)];
+            const fila = grupo && Array.isArray(grupo.equipos)
+                ? grupo.equipos[Number(datos.fila)]
+                : null;
+            if (fila) fila[campo] = convertirValorTablaLlaves(campo, valor, fila[campo]);
+        } else if (datos.ambito === 'tabla') {
+            const fila = Array.isArray(categoria.filas) ? categoria.filas[Number(datos.fila)] : null;
+            if (fila) fila[campo] = convertirValorTablaLlaves(campo, valor, fila[campo]);
+        }
+
+        marcarLlavesCambios();
+    }
+
+    function manejarClickLlaves(evento) {
+        const boton = evento.target.closest('button[data-accion]');
+        if (!boton) return;
+
+        const categoria = categoriaLlavesActual();
+        if (!categoria) return;
+
+        const datos = boton.dataset;
+        const accion = datos.accion;
+        let cambio = false;
+
+        if (accion === 'add-ronda') {
+            categoria.rondas = categoria.rondas || [];
+            categoria.rondas.push({
+                nombre: 'RONDA ' + (categoria.rondas.length + 1),
+                partidos: [partidoVacioLlaves()]
+            });
+            cambio = true;
+        } else if (accion === 'del-ronda') {
+            const ronda = (categoria.rondas || [])[Number(datos.ronda)];
+            if (ronda && confirm('¿Quitar la ronda "' + (ronda.nombre || '') + '" y todos sus partidos?')) {
+                categoria.rondas.splice(Number(datos.ronda), 1);
+                cambio = true;
+            }
+        } else if (accion === 'add-partido') {
+            const ronda = (categoria.rondas || [])[Number(datos.ronda)];
+            if (ronda) {
+                ronda.partidos = ronda.partidos || [];
+                ronda.partidos.push(partidoVacioLlaves());
+                cambio = true;
+            }
+        } else if (accion === 'del-partido') {
+            const ronda = (categoria.rondas || [])[Number(datos.ronda)];
+            if (ronda && Array.isArray(ronda.partidos)) {
+                ronda.partidos.splice(Number(datos.partido), 1);
+                cambio = true;
+            }
+        } else if (accion === 'add-grupo') {
+            categoria.grupos = categoria.grupos || [];
+            categoria.grupos.push({
+                nombre: 'GRUPO ' + letraGrupoLlaves(categoria.grupos.length),
+                equipos: [filaVaciaLlaves(categoria.columnas)]
+            });
+            cambio = true;
+        } else if (accion === 'del-grupo') {
+            const grupo = (categoria.grupos || [])[Number(datos.grupo)];
+            if (grupo && confirm('¿Quitar "' + (grupo.nombre || 'el grupo') + '"?')) {
+                categoria.grupos.splice(Number(datos.grupo), 1);
+                cambio = true;
+            }
+        } else if (accion === 'add-grupo-fila') {
+            const grupo = (categoria.grupos || [])[Number(datos.grupo)];
+            if (grupo) {
+                grupo.equipos = grupo.equipos || [];
+                grupo.equipos.push(filaVaciaLlaves(categoria.columnas));
+                cambio = true;
+            }
+        } else if (accion === 'del-grupo-fila') {
+            const grupo = (categoria.grupos || [])[Number(datos.grupo)];
+            if (grupo && Array.isArray(grupo.equipos)) {
+                grupo.equipos.splice(Number(datos.fila), 1);
+                cambio = true;
+            }
+        } else if (accion === 'add-cruce') {
+            if (!categoria.cruces || typeof categoria.cruces !== 'object') {
+                categoria.cruces = { titulo: 'CRUCES', partidos: [] };
+            }
+
+            categoria.cruces.partidos = Array.isArray(categoria.cruces.partidos)
+                ? categoria.cruces.partidos
+                : [];
+            categoria.cruces.partidos.push(partidoVacioLlaves());
+            cambio = true;
+        } else if (accion === 'del-cruce') {
+            if (categoria.cruces && Array.isArray(categoria.cruces.partidos)) {
+                categoria.cruces.partidos.splice(Number(datos.cruce), 1);
+                cambio = true;
+            }
+        } else if (accion === 'add-fila-tabla') {
+            categoria.filas = categoria.filas || [];
+            categoria.filas.push(filaVaciaLlaves(categoria.columnas));
+            cambio = true;
+        } else if (accion === 'del-fila-tabla') {
+            if (Array.isArray(categoria.filas)) {
+                categoria.filas.splice(Number(datos.fila), 1);
+                cambio = true;
+            }
+        }
+
+        if (cambio) {
+            marcarLlavesCambios();
+            renderizarEditorLlaves();
+        }
+    }
+
+    function cambiarCategoriaLlaves() {
+        const select = document.getElementById('llavesCategoria');
+        if (!select) return;
+
+        const indice = parseInt(select.value, 10);
+        if (Number.isFinite(indice)) llavesIndiceSeleccionado = indice;
+
+        renderizarEditorLlaves();
+    }
+
+    function marcarRotacionLlaves() {
+        if (!llavesTrabajo) return;
+
+        const input = document.getElementById('llavesRotacion');
+        const segundos = Number(input.value);
+
+        if (Number.isFinite(segundos)) {
+            llavesTrabajo.rotacionSegundos = segundos;
+        }
+
+        marcarLlavesCambios();
+    }
+
+    async function guardarLlavesClick() {
+        const error = document.getElementById('llavesError');
+        const boton = document.getElementById('llavesGuardar');
+
+        if (!llavesTrabajo) return;
+        if (error) error.hidden = true;
+
+        const inputRotacion = document.getElementById('llavesRotacion');
+        const segundos = rotacionNormalizada(inputRotacion ? inputRotacion.value : llavesTrabajo.rotacionSegundos);
+        llavesTrabajo.rotacionSegundos = segundos;
+        if (inputRotacion) inputRotacion.value = String(segundos);
+
+        if (!documentoConCategorias(llavesTrabajo)) {
+            mostrarErrorLlaves('Agregá al menos una pantalla antes de guardar.');
+            return;
+        }
+
+        const datos = clonar(llavesTrabajo);
+        delete datos.actualizadoEn;
+
+        const textoBoton = boton ? boton.textContent : '';
+        if (boton) {
+            boton.disabled = true;
+            boton.textContent = 'Guardando…';
+        }
+
+        llavesCambios = false;
+
+        try {
+            await HorariosSync.guardarLlaves(
+                datos,
+                sesion && sesion.user ? sesion.user.email : null
+            );
+
+            mostrarToast('Llaves publicadas en la 2.ª TV.');
+        } catch (fallo) {
+            console.error('No se pudieron guardar las llaves:', fallo);
+            llavesCambios = true;
+            mostrarErrorLlaves(traducirErrorGuardado(fallo));
+        } finally {
+            if (boton) {
+                boton.disabled = false;
+                boton.textContent = textoBoton || 'Guardar en la 2.ª TV';
+            }
+
+            actualizarInfoLlaves();
+        }
+    }
+
+    async function recargarLlavesClick() {
+        if (llavesCambios && !confirm('¿Descartar los cambios sin guardar y recargar desde la nube?')) {
+            return;
+        }
+
+        const boton = document.getElementById('llavesRecargar');
+        const error = document.getElementById('llavesError');
+
+        if (error) error.hidden = true;
+        if (boton) {
+            boton.disabled = true;
+            boton.textContent = 'Recargando…';
+        }
+
+        llavesCambios = false;
+        llavesRemotoPendiente = null;
+        llavesErrorTabla = '';
+
+        try {
+            const registro = await HorariosSync.obtenerLlaves();
+
+            if (registro && documentoConCategorias(registro.datos)) {
+                aplicarRegistroLlaves(registro, 'nube');
+            } else {
+                const cache = typeof HorariosSync.leerCacheLlaves === 'function'
+                    ? HorariosSync.leerCacheLlaves()
+                    : null;
+
+                if (cache && documentoConCategorias(cache.datos)) {
+                    aplicarRegistroLlaves(cache, 'cache');
+                } else {
+                    usarDatosEstaticos();
+                }
+
+                const problema = typeof HorariosSync.problemaLlaves === 'function'
+                    ? HorariosSync.problemaLlaves()
+                    : '';
+
+                if (problema) llavesErrorTabla = mensajeProblemaLlaves(problema);
+            }
+
+            actualizarInfoLlaves();
+            mostrarToast(registro ? 'Datos recargados desde la nube.' : 'Se recargó la última copia disponible.');
+        } catch (fallo) {
+            mostrarToast('No se pudo recargar: ' + (fallo.message || fallo), true);
+        } finally {
+            if (boton) {
+                boton.disabled = false;
+                boton.textContent = 'Recargar';
+            }
+        }
+    }
+
+    function marcarLlavesCambios() {
+        llavesCambios = true;
+        actualizarInfoLlaves();
+    }
+
+    function mostrarErrorLlaves(mensaje) {
+        const error = document.getElementById('llavesError');
+        if (!error) return;
+
+        error.textContent = mensaje;
+        error.hidden = false;
+    }
+
+    function actualizarInfoLlaves() {
+        const info = document.getElementById('llavesInfo');
+        if (!info) return;
+
+        const partes = [];
+
+        if (llavesErrorTabla) {
+            partes.push(llavesErrorTabla);
+        } else if (llavesActualizadoEn) {
+            const marca = formatearFecha(llavesActualizadoEn);
+            partes.push('Último cambio en la 2.ª TV: ' + (marca || llavesActualizadoEn) +
+                (llavesActualizadoPor ? ' · por ' + llavesActualizadoPor : '') + '.');
+        } else if (llavesTrabajo && !llavesFirmaAplicada) {
+            partes.push('Se muestran los datos de ejemplo. Guardá una vez para publicarlos en la 2.ª TV.');
+        } else if (llavesTrabajo) {
+            partes.push('Todavía no hay datos guardados en la nube.');
+        } else {
+            partes.push('Cargando llaves…');
+        }
+
+        if (llavesCambios) partes.push('Hay cambios sin guardar.');
+        if (llavesRemotoPendiente) {
+            partes.push('Hay cambios nuevos desde otro dispositivo: guardá los tuyos o usá Recargar.');
+        }
+
+        info.textContent = partes.join(' ');
+        info.classList.toggle('admin-llaves-info-error', !!llavesErrorTabla || !!llavesRemotoPendiente);
+        info.classList.toggle('admin-llaves-info-alerta', !!llavesCambios);
+
+        const card = document.getElementById('llavesCard');
+        if (card) card.classList.toggle('admin-llaves-dirty', !!llavesCambios);
+    }
+
+    /* ---------- Utilidades del editor de llaves ---------- */
+
+    function categoriaLlavesActual() {
+        if (!llavesTrabajo || !Array.isArray(llavesTrabajo.categorias)) return null;
+        return llavesTrabajo.categorias[llavesIndiceSeleccionado] || null;
+    }
+
+    function documentoConCategorias(datos) {
+        return !!(datos && Array.isArray(datos.categorias) && datos.categorias.length);
+    }
+
+    function firmaLlaves(datos) {
+        return JSON.stringify(datos || {});
+    }
+
+    function clonar(valor) {
+        return JSON.parse(JSON.stringify(valor === undefined ? null : valor));
+    }
+
+    function documentoEstatico() {
+        if (typeof bracketsEvento === 'undefined' || !bracketsEvento) {
+            return { rotacionSegundos: 18, categorias: [] };
+        }
+
+        const copia = clonar(bracketsEvento);
+        delete copia.actualizadoEn;
+        return copia;
+    }
+
+    function normalizarDocumento(original) {
+        const doc = clonar(original || {});
+        doc.rotacionSegundos = rotacionNormalizada(doc.rotacionSegundos);
+
+        const lista = Array.isArray(doc.categorias) ? doc.categorias : [];
+
+        doc.categorias = lista.filter(function (categoria) {
+            return categoria && typeof categoria === 'object';
+        }).map(function (categoria, indice) {
+            if (!categoria.id) categoria.id = 'pantalla-' + (indice + 1);
+            if (!categoria.titulo) categoria.titulo = 'PANTALLA ' + (indice + 1);
+            if (!categoria.tipo) categoria.tipo = 'tabla';
+            if (!colorValido(categoria.acento)) categoria.acento = '#00ffff';
+
+            if (categoria.tipo === 'llaves') {
+                const rondas = Array.isArray(categoria.rondas) ? categoria.rondas : [];
+
+                categoria.rondas = rondas.map(function (ronda, indiceRonda) {
+                    const datos = ronda && typeof ronda === 'object' ? ronda : {};
+                    datos.nombre = datos.nombre || 'RONDA ' + (indiceRonda + 1);
+                    datos.partidos = Array.isArray(datos.partidos) ? datos.partidos : [];
+                    return datos;
+                });
+
+                categoria.campeon = categoria.campeon && typeof categoria.campeon === 'object'
+                    ? categoria.campeon
+                    : { equipo: null, detalle: '' };
+            } else if (categoria.tipo === 'grupos') {
+                categoria.columnas = columnasDeCategoria(categoria, 'grupos');
+
+                const grupos = Array.isArray(categoria.grupos) ? categoria.grupos : [];
+                categoria.grupos = grupos.map(function (grupo, indiceGrupo) {
+                    const datos = grupo && typeof grupo === 'object' ? grupo : {};
+                    datos.nombre = datos.nombre || 'GRUPO ' + letraGrupoLlaves(indiceGrupo);
+                    datos.equipos = Array.isArray(datos.equipos) ? datos.equipos : [];
+                    return datos;
+                });
+
+                if (!categoria.cruces || typeof categoria.cruces !== 'object') {
+                    categoria.cruces = { titulo: 'CRUCES', partidos: [] };
+                }
+
+                categoria.cruces.titulo = categoria.cruces.titulo || 'CRUCES';
+                categoria.cruces.partidos = Array.isArray(categoria.cruces.partidos)
+                    ? categoria.cruces.partidos
+                    : [];
+            } else {
+                categoria.columnas = columnasDeCategoria(categoria, 'tabla');
+                categoria.filas = Array.isArray(categoria.filas) ? categoria.filas : [];
+            }
+
+            return categoria;
+        });
+
+        return doc;
+    }
+
+    function columnasDeCategoria(categoria, tipo) {
+        if (Array.isArray(categoria.columnas) && categoria.columnas.length) {
+            return categoria.columnas;
+        }
+
+        const estaticas = (typeof bracketsEvento !== 'undefined' && bracketsEvento &&
+            Array.isArray(bracketsEvento.categorias)) ? bracketsEvento.categorias : [];
+
+        const encontrada = estaticas.find(function (posible) {
+            return posible && ((categoria.id && posible.id === categoria.id) ||
+                (categoria.titulo && posible.titulo === categoria.titulo));
+        });
+
+        if (encontrada && Array.isArray(encontrada.columnas) && encontrada.columnas.length) {
+            return clonar(encontrada.columnas);
+        }
+
+        if (tipo === 'grupos') {
+            return [
+                { clave: 'pos', titulo: 'POS' },
+                { clave: 'equipo', titulo: 'EQUIPO', alineacion: 'izq' },
+                { clave: 'pj', titulo: 'PJ' },
+                { clave: 'dg', titulo: 'DIF' },
+                { clave: 'pts', titulo: 'PTS', destacar: true }
+            ];
+        }
+
+        return [
+            { clave: 'pos', titulo: 'POS' },
+            { clave: 'equipo', titulo: 'EQUIPO', alineacion: 'izq' },
+            { clave: 'puntos', titulo: 'PUNTOS', destacar: true }
+        ];
+    }
+
+    function rotacionNormalizada(valor) {
+        const numero = Number(valor);
+        if (!Number.isFinite(numero)) return 18;
+        return Math.min(300, Math.max(5, Math.round(numero)));
+    }
+
+    function colorValido(color) {
+        return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(String(color || ''));
+    }
+
+    function etiquetaTipoLlaves(tipo) {
+        if (tipo === 'llaves') return 'Llaves / eliminación directa';
+        if (tipo === 'grupos') return 'Grupos + cruces';
+        return 'Tabla de posiciones';
+    }
+
+    function mensajeProblemaLlaves(problema) {
+        const texto = String(problema || '');
+
+        if (/does not exist|schema cache|relation .*llaves/i.test(texto)) {
+            return 'La tabla de llaves todavía no existe. Ejecutá supabase/llaves.sql en el SQL Editor de Supabase.';
+        }
+
+        if (/row-level security|permission denied/i.test(texto)) {
+            return 'La cuenta no tiene permisos para las llaves. Revisá el correo de las políticas en supabase/llaves.sql.';
+        }
+
+        return 'No se pudo leer la nube: ' + texto + ' Se muestra la última copia disponible.';
+    }
+
+    function cambiarCampoPartidoLlaves(partido, campo, valor) {
+        if (campo === 'puntosA' || campo === 'puntosB') {
+            if (String(valor).trim() === '') {
+                partido[campo] = null;
+            } else {
+                const numero = Number(valor);
+                partido[campo] = Number.isFinite(numero) ? numero : null;
+            }
+            return;
+        }
+
+        if (campo === 'ganador') {
+            if (valor === 'A' || valor === 'B') {
+                partido.ganador = valor;
+            } else {
+                delete partido.ganador;
+            }
+            return;
+        }
+
+        partido[campo] = valor;
+    }
+
+    function convertirValorTablaLlaves(campo, valor, anterior) {
+        if (typeof anterior === 'number') {
+            if (String(valor).trim() === '') return '';
+            const numero = Number(String(valor).replace(',', '.'));
+            return Number.isFinite(numero) ? numero : valor;
+        }
+
+        return valor;
+    }
+
+    function partidoVacioLlaves() {
+        return {
+            equipoA: null,
+            equipoB: null,
+            puntosA: null,
+            puntosB: null,
+            estado: 'pendiente'
+        };
+    }
+
+    function filaVaciaLlaves(columnas) {
+        const fila = {};
+
+        (Array.isArray(columnas) ? columnas : []).forEach(function (columna) {
+            if (columna && columna.clave && columna.clave !== 'pos') {
+                fila[columna.clave] = '';
+            }
+        });
+
+        return fila;
+    }
+
+    function letraGrupoLlaves(indice) {
+        const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        return letras[indice] || String(indice + 1);
+    }
+
+    function crear(etiqueta, clase, texto) {
+        const elemento = document.createElement(etiqueta);
+        if (clase) elemento.className = clase;
+        if (texto !== undefined && texto !== null) elemento.textContent = texto;
+        return elemento;
+    }
+
+    function crearCampoLlaves(texto, control, clase) {
+        const label = crear('label', 'admin-llaves-campo' + (clase ? ' ' + clase : ''));
+        label.appendChild(crear('span', '', texto));
+        label.appendChild(control);
+        return label;
+    }
+
+    function crearInputLlaves(valor, dataset, opciones) {
+        opciones = opciones || {};
+
+        const input = document.createElement('input');
+        input.type = opciones.tipo || 'text';
+        input.value = valor === null || valor === undefined ? '' : String(valor);
+
+        if (opciones.placeholder) input.placeholder = opciones.placeholder;
+        if (opciones.min !== undefined) input.min = opciones.min;
+        if (opciones.max !== undefined) input.max = opciones.max;
+        if (opciones.step !== undefined) input.step = opciones.step;
+        if (opciones.clase) input.className = opciones.clase;
+
+        asignarDatasetLlaves(input, dataset);
+        return input;
+    }
+
+    function crearSelectLlaves(valor, opciones, dataset) {
+        const select = document.createElement('select');
+
+        (opciones || []).forEach(function (par) {
+            const opcion = document.createElement('option');
+            opcion.value = par[0];
+            opcion.textContent = par[1];
+            select.appendChild(opcion);
+        });
+
+        select.value = valor === null || valor === undefined ? '' : String(valor);
+        asignarDatasetLlaves(select, dataset);
+        return select;
+    }
+
+    function asignarDatasetLlaves(elemento, dataset) {
+        Object.keys(dataset || {}).forEach(function (clave) {
+            elemento.dataset[clave] = String(dataset[clave]);
+        });
+    }
+
+    function crearBotonLlaves(texto, clase, accion, dataset) {
+        const boton = document.createElement('button');
+        boton.type = 'button';
+        boton.className = 'admin-button ' + clase;
+        boton.textContent = texto;
+
+        boton.dataset.accion = accion;
+        asignarDatasetLlaves(boton, dataset);
+
+        return boton;
+    }
+
+    function crearBloqueLlaves(titulo, textoBoton, accion) {
+        const bloque = crear('div', 'admin-llaves-bloque');
+        const cabecera = crear('div', 'admin-llaves-bloque-head');
+
+        cabecera.appendChild(crear('h3', '', titulo));
+
+        if (textoBoton && accion) {
+            cabecera.appendChild(crearBotonLlaves(textoBoton, 'ghost', accion));
+        }
+
+        bloque.appendChild(cabecera);
+        return bloque;
     }
 
     function traducirErrorLogin(error) {
@@ -907,6 +2033,9 @@
     function traducirErrorGuardado(error) {
         const mensaje = String(error && error.message ? error.message : error);
 
+        if (/does not exist|schema cache/i.test(mensaje) && /llaves/i.test(mensaje)) {
+            return 'La tabla de llaves todavía no existe. Ejecutá supabase/llaves.sql en el SQL Editor de Supabase y volvé a intentar.';
+        }
         if (/row-level security|permission denied|not authorized/i.test(mensaje)) {
             return 'La cuenta no tiene permisos de administrador. Revisá el correo configurado en las políticas de Supabase.';
         }

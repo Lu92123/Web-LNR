@@ -1,10 +1,11 @@
 /**
  * Sincronización de horarios con Supabase - WebLiga
  *
- * - Descarga los cambios guardados en la tabla `horarios`.
+ * - Descarga los cambios guardados en las tablas `horarios`, `avisos` y
+ *   `llaves` (documento completo de la segunda TV).
  * - Los mantiene actualizados con Realtime y, como respaldo, con polling.
- * - Guarda una copia en localStorage para que el tablero siga mostrando
- *   el último estado conocido si se corta internet.
+ * - Guarda una copia en localStorage para que el tablero y la segunda TV
+ *   sigan mostrando el último estado conocido si se corta internet.
  * - Expone el login del administrador y las operaciones de escritura.
  *
  * Requiere: lib/supabase.js, supabase-config.js
@@ -14,8 +15,10 @@
 
     const TABLA = 'horarios';
     const TABLA_AVISOS = 'avisos';
+    const TABLA_LLAVES = 'llaves';
     const CLAVE_CACHE = 'webliga-horarios-cache-v1';
     const CLAVE_CACHE_AVISO = 'webliga-aviso-cache-v1';
+    const CLAVE_CACHE_LLAVES = 'webliga-llaves-cache-v1';
     const INTERVALO_RESPALDO = 30000;
     const TIEMPO_MAXIMO_LECTURA = 12000;
     const TIEMPO_MAXIMO_ESCRITURA = 15000;
@@ -35,6 +38,15 @@
     let ultimaSync = null;
     let estadoActual = 'inicial';
     let falloAviso = '';
+
+    /* Llaves de la segunda TV */
+    let llavesIniciadas = false;
+    let canalLlaves = null;
+    let intervaloLlaves = null;
+    let temporizadorLlaves = null;
+    let peticionLlavesActual = 0;
+    let alLlaves = null;
+    let falloLlaves = '';
 
     /* ------------------------------------------------------------------ */
     /* Configuración y cliente                                            */
@@ -222,6 +234,62 @@
         };
     }
 
+    function leerCacheLlaves() {
+        try {
+            const crudo = global.localStorage.getItem(CLAVE_CACHE_LLAVES);
+            if (!crudo) return null;
+
+            const datos = JSON.parse(crudo);
+            if (!datos || !datos.datos || typeof datos.datos !== 'object') return null;
+
+            return datos;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function guardarCacheLlaves(registro) {
+        try {
+            global.localStorage.setItem(CLAVE_CACHE_LLAVES, JSON.stringify({
+                datos: registro.datos,
+                actualizadoEn: registro.actualizadoEn || null,
+                actualizadoPor: registro.actualizadoPor || null,
+                guardadoEn: new Date().toISOString()
+            }));
+        } catch (e) {
+            // Sin espacio o navegación privada: seguimos funcionando online.
+        }
+    }
+
+    function filaALLaves(fila) {
+        const datos = fila && fila.datos && typeof fila.datos === 'object' && !Array.isArray(fila.datos)
+            ? fila.datos
+            : {};
+
+        return {
+            datos: datos,
+            actualizadoEn: fila && fila.actualizado_en ? fila.actualizado_en : null,
+            actualizadoPor: fila && fila.actualizado_por ? fila.actualizado_por : null
+        };
+    }
+
+    function emitirLlaves(registro, origen) {
+        if (typeof alLlaves !== 'function') return;
+
+        const datos = registro && registro.datos && typeof registro.datos === 'object'
+            ? registro.datos
+            : {};
+
+        alLlaves({
+            datos: datos,
+            actualizadoEn: registro && registro.actualizadoEn ? registro.actualizadoEn : null,
+            actualizadoPor: registro && registro.actualizadoPor ? registro.actualizadoPor : null
+        }, {
+            origen: origen,
+            fecha: registro && registro.actualizadoEn ? registro.actualizadoEn : null
+        });
+    }
+
     function emitirAviso(aviso, origen) {
         if (typeof alAviso !== 'function') return;
 
@@ -384,6 +452,60 @@
         return falloAviso;
     }
 
+    async function descargarLlaves(silencioso) {
+        const supabase = obtenerCliente();
+        if (!supabase) return null;
+
+        const numeroPeticion = ++peticionLlavesActual;
+
+        try {
+            const respuesta = await conTiempoLimite(
+                supabase
+                    .from(TABLA_LLAVES)
+                    .select('datos,actualizado_en,actualizado_por')
+                    .limit(1),
+                TIEMPO_MAXIMO_LECTURA,
+                'No se pudo conectar con el servidor de llaves.'
+            );
+
+            if (respuesta.error) throw respuesta.error;
+            if (numeroPeticion !== peticionLlavesActual) return null;
+
+            falloLlaves = '';
+
+            const registro = respuesta.data && respuesta.data.length
+                ? filaALLaves(respuesta.data[0])
+                : { datos: {}, actualizadoEn: null, actualizadoPor: null };
+
+            guardarCacheLlaves(registro);
+            emitirLlaves(registro, 'nube');
+            return registro;
+        } catch (error) {
+            if (numeroPeticion !== peticionLlavesActual) return null;
+
+            // Las llaves no definen el estado de conexión del tablero
+            // (eso lo controlan los horarios). Con la caché alcanza.
+            falloLlaves = String(error && error.message ? error.message : error);
+
+            if (!silencioso) {
+                console.warn('WebLiga: no se pudieron cargar las llaves. ' + falloLlaves);
+            }
+
+            const cache = leerCacheLlaves();
+            if (cache) emitirLlaves(cache, 'cache');
+
+            return null;
+        }
+    }
+
+    async function obtenerLlaves() {
+        return await descargarLlaves(true);
+    }
+
+    function problemaLlaves() {
+        return falloLlaves;
+    }
+
     function suscribir() {
         const supabase = obtenerCliente();
         if (!supabase || canal) return;
@@ -432,6 +554,33 @@
                     // Probamos la descarga normal; si funciona, seguimos online.
                     descargarOverrides(true);
                     descargarAviso(true);
+                }
+            });
+    }
+
+    function suscribirLlaves() {
+        const supabase = obtenerCliente();
+        if (!supabase || canalLlaves) return;
+
+        canalLlaves = supabase
+            .channel('webliga-llaves')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: TABLA_LLAVES },
+                function () {
+                    if (temporizadorLlaves !== null) {
+                        clearTimeout(temporizadorLlaves);
+                    }
+
+                    temporizadorLlaves = setTimeout(function () {
+                        temporizadorLlaves = null;
+                        descargarLlaves(true);
+                    }, 200);
+                }
+            )
+            .subscribe(function (estado) {
+                if (estado === 'SUBSCRIBED' || estado === 'CHANNEL_ERROR' || estado === 'TIMED_OUT') {
+                    descargarLlaves(true);
                 }
             });
     }
@@ -486,6 +635,44 @@
         global.removeEventListener('online', alVolverOnline);
         global.removeEventListener('offline', alPerderConexion);
         global.document.removeEventListener('visibilitychange', alCambiarVisibilidad);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Respaldo de llaves: polling y eventos de red                       */
+    /* ------------------------------------------------------------------ */
+
+    function alVolverOnlineLlaves() {
+        if (llavesIniciadas) descargarLlaves(true);
+    }
+
+    function alCambiarVisibilidadLlaves() {
+        if (llavesIniciadas && global.document.visibilityState === 'visible') {
+            descargarLlaves(true);
+        }
+    }
+
+    function iniciarRespaldoLlaves() {
+        detenerRespaldoLlaves();
+
+        intervaloLlaves = setInterval(function () {
+            if (!llavesIniciadas) return;
+            if (global.document.visibilityState === 'hidden') return;
+            if (global.navigator && global.navigator.onLine === false) return;
+            descargarLlaves(true);
+        }, INTERVALO_RESPALDO);
+
+        global.addEventListener('online', alVolverOnlineLlaves);
+        global.document.addEventListener('visibilitychange', alCambiarVisibilidadLlaves);
+    }
+
+    function detenerRespaldoLlaves() {
+        if (intervaloLlaves !== null) {
+            clearInterval(intervaloLlaves);
+            intervaloLlaves = null;
+        }
+
+        global.removeEventListener('online', alVolverOnlineLlaves);
+        global.document.removeEventListener('visibilitychange', alCambiarVisibilidadLlaves);
     }
 
     /* ------------------------------------------------------------------ */
@@ -554,6 +741,58 @@
         }
 
         detenerRespaldo();
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Llaves de la segunda TV                                            */
+    /* ------------------------------------------------------------------ */
+
+    async function iniciarLlaves(opciones) {
+        opciones = opciones || {};
+
+        if (typeof opciones.alCambiar === 'function') {
+            alLlaves = opciones.alCambiar;
+        }
+
+        if (!estaConfigurado()) return { configurado: false };
+        if (llavesIniciadas) return { configurado: true, yaIniciado: true };
+
+        llavesIniciadas = true;
+
+        const cache = leerCacheLlaves();
+        if (cache) {
+            emitirLlaves(cache, 'cache');
+        }
+
+        // Nos suscribimos antes de la primera descarga para no perder ningún
+        // cambio que ocurra mientras se está leyendo la tabla.
+        try {
+            suscribirLlaves();
+        } catch (error) {
+            console.error('WebLiga: no se pudo abrir Realtime para las llaves. ' +
+                (error.message || error));
+        }
+
+        await descargarLlaves(false);
+        iniciarRespaldoLlaves();
+
+        return { configurado: true };
+    }
+
+    function detenerLlaves() {
+        llavesIniciadas = false;
+
+        if (temporizadorLlaves !== null) {
+            clearTimeout(temporizadorLlaves);
+            temporizadorLlaves = null;
+        }
+
+        if (canalLlaves) {
+            canalLlaves.unsubscribe();
+            canalLlaves = null;
+        }
+
+        detenerRespaldoLlaves();
     }
 
     /* ------------------------------------------------------------------ */
@@ -717,6 +956,37 @@
     }
 
     /* ------------------------------------------------------------------ */
+    /* Llaves: escritura (solo administrador)                             */
+    /* ------------------------------------------------------------------ */
+
+    async function guardarLlaves(datos, email) {
+        const supabase = obtenerCliente();
+        if (!supabase) throw new Error('Falta configurar Supabase (supabase-config.js).');
+
+        if (!datos || typeof datos !== 'object' || Array.isArray(datos)) {
+            throw new Error('Los datos de llaves no son válidos.');
+        }
+
+        const respuesta = await conTiempoLimite(
+            supabase
+                .from(TABLA_LLAVES)
+                .upsert({
+                    id: 1,
+                    datos: datos,
+                    actualizado_por: email || null,
+                    actualizado_en: new Date().toISOString()
+                }, { onConflict: 'id' }),
+            TIEMPO_MAXIMO_ESCRITURA,
+            'El servidor tardó demasiado en guardar las llaves.'
+        );
+
+        if (respuesta.error) throw respuesta.error;
+
+        await descargarLlaves(true);
+        return true;
+    }
+
+    /* ------------------------------------------------------------------ */
     /* API pública                                                        */
     /* ------------------------------------------------------------------ */
 
@@ -732,6 +1002,13 @@
         obtenerAviso: obtenerAviso,
         problemaAviso: problemaAviso,
         guardarAviso: guardarAviso,
+        leerCacheLlaves: leerCacheLlaves,
+        iniciarLlaves: iniciarLlaves,
+        detenerLlaves: detenerLlaves,
+        descargarLlaves: descargarLlaves,
+        obtenerLlaves: obtenerLlaves,
+        problemaLlaves: problemaLlaves,
+        guardarLlaves: guardarLlaves,
         obtenerEstado: function () { return estadoActual; },
         obtenerUltimaSync: function () { return ultimaSync; },
         iniciarSesion: iniciarSesion,

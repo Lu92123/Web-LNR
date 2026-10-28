@@ -3,7 +3,8 @@
 Página pensada para la TV de competidores y jueces:
 
 - `brackets.html` → la pantalla (carrusel automático).
-- `brackets-data.js` → **el único archivo que se edita durante el evento**.
+- `admin.html` → **el lugar para editar** durante el evento (sin tocar código).
+- `brackets-data.js` → datos de ejemplo y respaldo si Supabase no está configurado.
 - `brackets.js` → lógica del carrusel (no hace falta tocarlo).
 - Estilos: sección "PANTALLA DE LLAVES Y POSICIONES" al final de `styles.css`.
 
@@ -23,7 +24,9 @@ Rota automáticamente entre las 5 pantallas:
 4. Sigue Líneas (tabla de tiempos y puntos).
 5. Liga Nacional Oficial (tabla general).
 
-Tiempo por pantalla: `rotacionSegundos` en `brackets-data.js` (por defecto 18 s).
+Tiempo por pantalla: se cambia desde `admin.html` (campo **Segundos por pantalla**,
+entre 5 y 300). Sin panel, el valor queda en `rotacionSegundos` de
+`brackets-data.js` (por defecto 18 s).
 
 Opciones por URL (útiles para probar):
 
@@ -35,17 +38,62 @@ Controles de teclado: **← →** cambian de pantalla, **ESPACIO** pausa/reanuda
 **F** entra o sale de pantalla completa. También se puede hacer clic en los
 puntos del pie.
 
-## Actualizar los datos
+## Editar desde el panel de administración
 
-Abrir `brackets-data.js`, editar y guardar. Después recargar la página en la TV
-con **F5** (o `Ctrl + F5`).
+Esta es la forma normal de actualizarla durante el evento:
+
+1. Abrí `admin.html` e iniciá sesión con la cuenta de administrador.
+2. Bajá hasta la tarjeta **Llaves y posiciones (2.ª TV)**.
+3. Elegí la pantalla en **Pantalla**: Mini Sumo, Sumo, Fútbol, Sigue Líneas o
+   Liga Nacional.
+4. Editá los campos y tocá **Guardar en la 2.ª TV**.
+5. La TV cambia sola, **sin recargar** y sin volver a subir la web.
+
+Qué se puede editar:
+
+- **Todas las pantallas:** título, nombre corto, fase, color neón y nota al pie.
+- **Llaves (Mini Sumo y Sumo):** nombre de cada ronda, equipos, puntos, estado
+  (`Finalizado`, `En vivo`, `Pendiente`), ganador manual y equipo campeón.
+  Se pueden agregar y quitar rondas y partidos.
+- **Fútbol:** nombre de cada grupo, filas de la tabla y título de los cruces;
+  se pueden agregar y quitar grupos, equipos y cruces.
+- **Tablas (Sigue Líneas y Liga Nacional):** filas completas; se pueden agregar
+  y quitar.
+- **Segundos por pantalla:** cuánto queda cada pantalla antes de rotar.
+
+Detalles útiles:
+
+- El pie de `brackets.html` muestra la **fecha y hora real** del último guardado
+  en Supabase, no un texto escrito a mano.
+- **Recargar** vuelve a traer lo último guardado en la nube y descarta lo que
+  estabas editando (pide confirmación si hay cambios sin guardar).
+- Si otro dispositivo guardó mientras editabas, el panel avisa antes de pisar
+  esos cambios.
+- Si se corta internet, la TV sigue mostrando la última copia guardada y se
+  actualiza sola cuando vuelve la conexión.
+- Solo la cuenta de administrador puede guardar. Los invitados y las TVs solo
+  leen: nunca ven el panel.
+
+> La primera vez, si la nube está vacía, el panel carga los datos de ejemplo de
+> `brackets-data.js`. Al tocar **Guardar** se publican en la 2.ª TV.
+
+Las cinco pantallas son fijas desde el panel: edita su contenido, no crea
+pantallas nuevas. Para cambiar la lista, ver
+[Agregar o quitar pantallas (avanzado)](#agregar-o-quitar-pantallas-avanzado).
+
+## Respaldo local (sin Supabase)
+
+Si todavía no configuraste Supabase, la pantalla usa `brackets-data.js` como
+siempre. Abrí ese archivo, editá y guardá; después recargá la TV con **F5**
+(o `Ctrl + F5`). Cuando hay datos guardados en la nube, esos tienen prioridad
+sobre el archivo local.
 
 ### 1. Datos generales
 
 ```js
 const bracketsEvento = {
-    rotacionSegundos: 18,          // segundos por pantalla
-    actualizadoEn: "27/10/2026 · 21:30",   // texto del pie
+    rotacionSegundos: 18,          // segundos por pantalla (si no hay nube)
+    actualizadoEn: "27/10/2026 · 21:30",   // texto del pie solo sin Supabase
     categorias: [ ... ]
 };
 ```
@@ -137,7 +185,21 @@ resaltar una columna, usar `destacar: true`.
 Cada clave de `columnas` tiene que existir en las filas. Las tres primeras
 filas se resaltan automáticamente.
 
-### Agregar o quitar pantallas
+### Agregar o quitar pantallas (avanzado)
 
-Agregar o borrar objetos dentro de `categorias`. El carrusel y los puntos del
-pie se arman solos con esa lista. También se puede cambiar el orden.
+La lista de pantallas viaja dentro del documento guardado en la nube. Si ya
+guardaste desde el panel, editar `brackets-data.js` no alcanza: la nube tiene
+prioridad.
+
+1. Agregá, quitá o reordená los objetos dentro de `categorias` en
+   `brackets-data.js` y publicá la web.
+2. En Supabase → **SQL Editor**, borrá el documento guardado:
+
+   ```sql
+   delete from public.llaves;
+   ```
+
+3. Abrí `admin.html`, verificá que aparezcan las pantallas nuevas y tocá
+   **Guardar en la 2.ª TV** para volver a publicarlas.
+
+El carrusel y los puntos del pie se arman solos con esa lista.
