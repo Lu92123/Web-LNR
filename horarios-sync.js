@@ -225,13 +225,21 @@
     function emitirAviso(aviso, origen) {
         if (typeof alAviso !== 'function') return;
 
-        if (!aviso) {
+        // Solo se muestra un aviso activo y con texto real
+        const texto = aviso ? String(aviso.texto || '').trim() : '';
+        const mostrar = aviso && aviso.activo && texto;
+
+        if (!mostrar) {
             alAviso(null, { origen: origen });
             return;
         }
 
-        // Un aviso sin texto no se muestra
-        alAviso(aviso.activo && aviso.texto ? aviso : null, {
+        alAviso({
+            texto: texto,
+            activo: !!aviso.activo,
+            actualizadoEn: aviso.actualizadoEn || null,
+            actualizadoPor: aviso.actualizadoPor || null
+        }, {
             origen: origen,
             fecha: aviso.actualizadoEn
         });

@@ -297,18 +297,20 @@ function aplicarAviso(aviso) {
     if (!banner) return;
 
     const texto = banner.querySelector('.aviso-texto');
-    const firma = aviso && aviso.texto ? String(aviso.texto) : '';
+    const contenido = aviso ? String(aviso.texto || '').trim() : '';
+    const firma = contenido ? contenido : '';
 
+    // Sin mensaje (o con un texto vacío) el cartel se oculta
     if (firma === ultimaFirmaAviso) return;
     ultimaFirmaAviso = firma;
 
-    if (!aviso) {
+    if (!contenido) {
         banner.hidden = true;
         banner.title = '';
         return;
     }
 
-    if (texto) texto.textContent = aviso.texto;
+    if (texto) texto.textContent = contenido;
 
     let marca = 'Aviso para todos los participantes';
     if (aviso.actualizadoEn) {
