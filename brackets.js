@@ -377,7 +377,9 @@
     function crearPartidoLlave(partido, claseExtra) {
         const datos = partido || {};
         const estado = datos.estado || 'pendiente';
+        const paseLibre = datos.paseLibre === true;
         const articulo = crearEl('article', 'brk-partido brk-partido--' + estado +
+            (paseLibre ? ' brk-partido--pase-libre' : '') +
             (claseExtra ? ' ' + claseExtra : ''));
 
         if (estado === 'en_curso') {
@@ -389,21 +391,27 @@
         const ganaB = !!ganador && ganador === datos.equipoB;
 
         articulo.appendChild(crearJugador(datos.equipoA, datos.puntosA, ganaA));
-        articulo.appendChild(crearJugador(datos.equipoB, datos.puntosB, ganaB));
+        articulo.appendChild(crearJugador(
+            datos.equipoB,
+            datos.puntosB,
+            ganaB,
+            paseLibre && !datos.equipoB
+        ));
 
         return articulo;
     }
 
-    function crearJugador(idEquipo, puntos, ganador) {
+    function crearJugador(idEquipo, puntos, ganador, paseLibre) {
         const fila = crearEl('div', 'brk-jugador');
         const equipo = Logica.equipo(documento, idEquipo);
 
         if (ganador) fila.classList.add('brk-ganador');
         if (!equipo) fila.classList.add('brk-vacio');
+        if (!equipo && paseLibre) fila.classList.add('brk-pase-libre');
 
         const info = crearEl('span', 'brk-jugador-info');
         info.appendChild(crearEl('span', 'brk-jugador-nombre',
-            equipo ? equipo.nombre : 'Por definir'));
+            equipo ? equipo.nombre : (paseLibre ? 'Pase libre' : 'Por definir')));
 
         if (equipo && equipo.institucion) {
             info.appendChild(crearEl('span', 'brk-jugador-inst', equipo.institucion));

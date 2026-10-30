@@ -43,6 +43,8 @@ pantallas: no se editan a mano.
 - Cuadro de eliminación directa: cuartos → semifinales → final.
 - El perdedor de cada semifinal juega el **tercer puesto**.
 - El ganador de cada combate **pasa solo** a la ronda siguiente.
+- El botón **Sorteo aleatorio** del panel arma el cuadro al azar y agrega
+  **pases libres** si la cantidad de equipos no es potencia de 2.
 
 ### Fútbol de Robots
 
@@ -99,6 +101,38 @@ pantallas: no se editan a mano.
   celdas restantes. El panel muestra la mejor pasada de cada configuración y el
   total, y actualiza el podio mientras escribís.
 - **Resumen:** no se edita. Muestra el podio calculado de cada categoría.
+
+### Sorteo aleatorio y pases libres
+
+En **Mini Sumo**, **Sumo** y **Fútbol** el panel tiene el botón **Sorteo
+aleatorio**. Arma los cruces al azar con los equipos cargados en **Equipos
+inscriptos**, sin escribir nombres a mano.
+
+- **Mini Sumo / Sumo:** mezcla los equipos y arma las rondas de eliminación
+  directa (cuartos, semifinales y final según la cantidad). Si ya había cruces o
+  resultados cargados, pide confirmación antes de reemplazarlos.
+- **Fútbol:** reparte los equipos al azar en **Grupo A** y **Grupo B** (si son
+  impares, el A recibe uno más), arma todos los partidos de todos contra todos y
+  deja las semifinales, la final y el tercer puesto vacíos para que se completen
+  solos. Necesita al menos 4 equipos.
+- Después del sorteo se puede ajustar cualquier cruce con los desplegables y
+  cargar los resultados como siempre.
+
+**Pases libres (byes).** Si la cantidad de equipos no es potencia de 2 (5, 6, 7,
+9…), el sorteo completa la primera ronda con pases libres:
+
+- La llave se arma con el siguiente tamaño potencia de 2 (5 → 8, 9 → 16).
+- Los pases libres se reparten en cruces distintos, así ningún cruce queda vacío.
+- El equipo con pase libre **avanza solo** a la ronda siguiente, sin jugar.
+- En el panel el combate muestra la etiqueta **Pase libre** y el aviso *“Pase
+  libre: Equipo X pasa directo a la ronda siguiente.”*
+- En la TV el lado vacío del cruce dice **“Pase libre”** en lugar de “Por
+  definir”.
+- Si después se elige un equipo en el lado vacío, el cruce deja de ser pase
+  libre y se juega normalmente.
+
+> Ejemplo: 5 equipos → llave de 8 → 3 pases libres y 1 cruce real en cuartos.
+> Los 3 equipos con pase libre y el ganador del cruce pasan a semifinales.
 
 ### Detalles útiles
 
@@ -173,7 +207,8 @@ Tipos de pantalla (`tipo`): `llaves`, `futbol`, `tiempos`, `laberinto`,
         {
             nombre: "CUARTOS DE FINAL",
             partidos: [
-                { equipoA: "ms-titanio", equipoB: "ms-escorpion", puntosA: 2, puntosB: 0, estado: "finalizado" }
+                { equipoA: "ms-titanio", equipoB: "ms-escorpion", puntosA: 2, puntosB: 0, estado: "finalizado" },
+                { equipoA: "ms-furia", equipoB: null, puntosA: null, puntosB: null, estado: "pendiente", paseLibre: true }
             ]
         }
     ],
@@ -184,6 +219,8 @@ Tipos de pantalla (`tipo`): `llaves`, `futbol`, `tiempos`, `laberinto`,
 - `estado`: `pendiente` | `en_curso` | `finalizado`.
 - Un combate finalizado con puntos distintos define al ganador solo.
 - Si hace falta forzarlo, se puede guardar `ganador: "A"` o `"B"`.
+- `paseLibre: true` marca un pase libre del sorteo: el único equipo del cruce
+  avanza sin jugar. El lado sin equipo se muestra como “Pase libre” en la TV.
 - Los equipos de las rondas siguientes pueden quedar en `null`: se completan
   con los ganadores de la ronda anterior.
 - `tercerPuesto` se completa con los perdedores de las semifinales.

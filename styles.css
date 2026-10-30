@@ -1920,6 +1920,22 @@ html, body {
     color: var(--text-secondary);
 }
 
+/* Pase libre (bye): el equipo avanza sin jugar. */
+.brk-partido--pase-libre {
+    border-left-style: dashed;
+}
+
+.brk-pase-libre .brk-jugador-nombre {
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 0.85em;
+    opacity: 0.75;
+}
+
+.brk-pase-libre .brk-jugador-puntos {
+    opacity: 0.35;
+}
+
 .brk-sin-partidos {
     text-align: center;
     font-family: 'Rajdhani', sans-serif;

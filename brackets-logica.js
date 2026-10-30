@@ -119,7 +119,8 @@
             puntosA: num(datos.puntosA),
             puntosB: num(datos.puntosB),
             estado: datos.estado || 'pendiente',
-            ganador: datos.ganador === 'A' || datos.ganador === 'B' ? datos.ganador : null
+            ganador: datos.ganador === 'A' || datos.ganador === 'B' ? datos.ganador : null,
+            paseLibre: datos.paseLibre === true
         };
     }
 
@@ -128,6 +129,9 @@
 
         if (partido.ganador === 'A') return partido.equipoA || null;
         if (partido.ganador === 'B') return partido.equipoB || null;
+
+        // Pase libre: el único equipo del cruce avanza sin jugar.
+        if (partido.paseLibre) return partido.equipoA || partido.equipoB || null;
 
         if (partido.estado !== 'finalizado') return null;
         if (partido.puntosA === null || partido.puntosB === null) return null;
@@ -201,6 +205,133 @@
             campeon: ganadorLlave(final),
             subcampeon: perdedorLlave(final),
             terceroGanador: ganadorLlave(tercero)
+        };
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Sorteo aleatorio de llaves (con pases libres)                      */
+    /* ------------------------------------------------------------------ */
+
+    /** Baraja una lista sin modificar la original. */
+    function mezclar(lista) {
+        const copia = (Array.isArray(lista) ? lista : []).slice();
+
+        for (let i = copia.length - 1; i > 0; i -= 1) {
+            const j = Math.floor(Math.random() * (i + 1));
+            const auxiliar = copia[i];
+            copia[i] = copia[j];
+            copia[j] = auxiliar;
+        }
+
+        return copia;
+    }
+
+    function potenciaDeDos(cantidad) {
+        let tamano = 1;
+        while (tamano < cantidad) tamano *= 2;
+        return tamano;
+    }
+
+    function nombreRondaEliminacion(partidos) {
+        if (partidos <= 1) return 'FINAL';
+        if (partidos === 2) return 'SEMIFINALES';
+        if (partidos === 4) return 'CUARTOS DE FINAL';
+        if (partidos === 8) return 'OCTAVOS DE FINAL';
+        return 'RONDA DE ' + (partidos * 2);
+    }
+
+    /**
+     * Índices de los cruces de la primera ronda que reciben un pase libre.
+     * Se reparten lo más parejo posible para que ningún cruce quede vacío:
+     * la cantidad de pases libres siempre es menor que la de cruces.
+     */
+    function crucesConPaseLibre(cruces, pases) {
+        const indices = [];
+
+        if (pases <= 0 || cruces <= 0) return indices;
+        if (pases === 1) return [0];
+
+        for (let i = 0; i < pases; i += 1) {
+            indices.push(Math.round((i * (cruces - 1)) / (pases - 1)));
+        }
+
+        return indices;
+    }
+
+    /**
+     * Arma una llave de eliminación directa al azar a partir de los equipos
+     * inscriptos. Si la cantidad no es potencia de 2, completa la primera
+     * ronda con pases libres (byes) y deja las rondas siguientes vacías para
+     * que el autoavance las complete.
+     *
+     * Devuelve { rondas, tercerPuesto, equipos, pasesLibres, tamano }.
+     */
+    function sortearLlaves(idsEquipos) {
+        const crudos = (Array.isArray(idsEquipos) ? idsEquipos : []).filter(Boolean);
+        const unicos = crudos.filter(function (id, indice) {
+            return crudos.indexOf(id) === indice;
+        });
+
+        if (unicos.length < 2) {
+            return {
+                rondas: [],
+                tercerPuesto: combateVacio(),
+                equipos: unicos.length,
+                pasesLibres: 0,
+                tamano: 0
+            };
+        }
+
+        const equipos = mezclar(unicos);
+        const tamano = potenciaDeDos(equipos.length);
+        const pasesLibres = tamano - equipos.length;
+        const cruces = tamano / 2;
+        const conPase = crucesConPaseLibre(cruces, pasesLibres);
+
+        const primera = [];
+        let cursor = 0;
+
+        for (let cruce = 0; cruce < cruces; cruce += 1) {
+            const partido = combateVacio();
+
+            if (conPase.indexOf(cruce) !== -1) {
+                partido.equipoA = equipos[cursor] || null;
+                partido.paseLibre = true;
+                cursor += 1;
+            } else {
+                partido.equipoA = equipos[cursor] || null;
+                partido.equipoB = equipos[cursor + 1] || null;
+                cursor += 2;
+            }
+
+            primera.push(partido);
+        }
+
+        const rondas = [{
+            nombre: nombreRondaEliminacion(cruces),
+            partidos: primera
+        }];
+
+        let cantidad = cruces;
+
+        while (cantidad > 1) {
+            cantidad /= 2;
+
+            const partidos = [];
+            for (let i = 0; i < cantidad; i += 1) partidos.push(combateVacio());
+
+            rondas.push({
+                nombre: nombreRondaEliminacion(cantidad),
+                partidos: partidos
+            });
+        }
+
+        return {
+            rondas: rondas,
+            tercerPuesto: combateVacio(),
+            equipos: equipos.length,
+            pasesLibres: pasesLibres,
+            tamano: tamano
         };
     }
 
@@ -406,6 +537,68 @@
             subcampeon: perdedorFutbol(final),
             tercero: ganadorFutbol(tercerPuesto)
         };
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Sorteo aleatorio de grupos (Fútbol)                                */
+    /* ------------------------------------------------------------------ */
+
+    /** Todos los partidos de un grupo (todos contra todos). */
+    function partidosRoundRobin(idsEquipos) {
+        const ids = Array.isArray(idsEquipos) ? idsEquipos : [];
+        const partidos = [];
+
+        for (let i = 0; i < ids.length; i += 1) {
+            for (let j = i + 1; j < ids.length; j += 1) {
+                const partido = partidoFutbolVacio();
+                partido.equipoA = ids[i];
+                partido.equipoB = ids[j];
+                partidos.push(partido);
+            }
+        }
+
+        return partidos;
+    }
+
+    /**
+     * Reparte los equipos inscriptos al azar en los dos grupos del fútbol
+     * (A y B) y arma todos los partidos de la fase de grupos. El grupo A se
+     * queda con el equipo extra si la cantidad es impar.
+     *
+     * Devuelve { grupos, playoffs, equipos }.
+     */
+    function sortearGruposFutbol(idsEquipos) {
+        const crudos = (Array.isArray(idsEquipos) ? idsEquipos : []).filter(Boolean);
+        const unicos = crudos.filter(function (id, indice) {
+            return crudos.indexOf(id) === indice;
+        });
+
+        const playoffsVacios = {
+            semifinales: [partidoFutbolVacio(), partidoFutbolVacio()],
+            final: partidoFutbolVacio(),
+            tercerPuesto: partidoFutbolVacio()
+        };
+
+        if (unicos.length < 4) {
+            return { grupos: [], playoffs: playoffsVacios, equipos: unicos.length };
+        }
+
+        const equipos = mezclar(unicos);
+        const mitad = Math.ceil(equipos.length / 2);
+        const reparto = [
+            { nombre: 'GRUPO A', equipos: equipos.slice(0, mitad) },
+            { nombre: 'GRUPO B', equipos: equipos.slice(mitad) }
+        ];
+
+        const grupos = reparto.map(function (grupo) {
+            return {
+                nombre: grupo.nombre,
+                equipos: grupo.equipos.slice(),
+                partidos: partidosRoundRobin(grupo.equipos)
+            };
+        });
+
+        return { grupos: grupos, playoffs: playoffsVacios, equipos: equipos.length };
     }
 
     /* ------------------------------------------------------------------ */
@@ -651,7 +844,8 @@
             equipoB: null,
             puntosA: null,
             puntosB: null,
-            estado: 'pendiente'
+            estado: 'pendiente',
+            paseLibre: false
         };
     }
 
@@ -776,6 +970,10 @@
         ganadorLlave: ganadorLlave,
         perdedorLlave: perdedorLlave,
         resolverLlaves: resolverLlaves,
+        mezclar: mezclar,
+        potenciaDeDos: potenciaDeDos,
+        sortearLlaves: sortearLlaves,
+        sortearGruposFutbol: sortearGruposFutbol,
         tablaGrupo: tablaGrupo,
         grupoCompleto: grupoCompleto,
         clasificadosFutbol: clasificadosFutbol,

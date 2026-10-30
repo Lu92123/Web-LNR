@@ -267,9 +267,13 @@ volver a subir la web.
   eligen desde desplegables, sin escribir nombres a mano.
 - Elegí la pantalla en el desplegable y cargá solo los resultados:
   - **Mini Sumo / Sumo:** Yuhkoh de cada combate (mejor de 3, gana quien llega
-    a 2). El ganador pasa solo a la ronda siguiente.
+    a 2). El ganador pasa solo a la ronda siguiente. El botón **Sorteo
+    aleatorio** arma el cuadro al azar y agrega **pases libres** si la cantidad
+    de equipos no es potencia de 2.
   - **Fútbol:** goles, penales y estado. La tabla de cada grupo se calcula sola
-    y los cruces (1.º A vs 2.º B) se completan solos.
+    y los cruces (1.º A vs 2.º B) se completan solos. **Sorteo aleatorio**
+    reparte los equipos en los dos grupos y arma los partidos de todos contra
+    todos.
   - **Sigue Líneas:** tres pasadas por robot en segundos y milésimas. La TV
     muestra `12.480 s` y ordena por el mejor tiempo.
   - **Laberinto:** dos configuraciones × cinco pasadas por robot. Por pasada se

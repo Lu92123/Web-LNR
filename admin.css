@@ -121,6 +121,17 @@ body.admin-page {
     background: transparent;
 }
 
+.admin-button.admin-sorteo {
+    background: transparent;
+    border-color: var(--neon-purple, #b026ff);
+    color: var(--neon-purple, #b026ff);
+}
+
+.admin-button.admin-sorteo:hover {
+    background: rgba(176, 38, 255, 0.12);
+    border-color: var(--neon-purple, #b026ff);
+}
+
 .admin-button:disabled {
     opacity: 0.55;
     cursor: wait;
@@ -725,6 +736,13 @@ body.admin-page {
 .admin-llaves-quitar {
     color: var(--neon-orange);
     border-color: var(--neon-orange);
+}
+
+.admin-llaves-bye {
+    margin-top: 0;
+    color: var(--neon-cyan);
+    border-color: var(--neon-cyan);
+    background: transparent;
 }
 
 .admin-llaves-quitar:hover {

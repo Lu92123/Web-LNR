@@ -836,6 +836,7 @@
 
     function crearEditorLlaves(categoria) {
         const bloque = crearBloqueLlaves('Rondas y combates');
+        agregarAccionBloque(bloque, 'Sorteo aleatorio', 'sortear-llaves', null, 'admin-sorteo');
         agregarAccionBloque(bloque, 'Actualizar vista', 'refrescar-editor');
         agregarAccionBloque(bloque, '+ Ronda', 'add-ronda');
 
@@ -964,6 +965,10 @@
 
         caja.appendChild(grid);
 
+        if (datos.paseLibre) {
+            caja.appendChild(crear('span', 'admin-tag admin-llaves-bye', 'Pase libre'));
+        }
+
         const autoavance = textoAutoavance(datos, vista, contexto);
         if (autoavance) {
             const hint = crear('p', 'admin-llaves-autoavance', autoavance);
@@ -993,6 +998,11 @@
      */
     function textoAutoavance(datos, vista, contexto) {
         if (!vista) return '';
+
+        if (datos.paseLibre) {
+            const equipo = nombreEquipoPodio(datos.equipoA || datos.equipoB);
+            return 'Pase libre: ' + equipo + ' pasa directo a la ronda siguiente.';
+        }
 
         const autoA = !datos.equipoA && vista.equipoA;
         const autoB = !datos.equipoB && vista.equipoB;
@@ -1161,6 +1171,7 @@
 
     function crearEditorGruposFutbol(categoria) {
         const bloque = crearBloqueLlaves('Fase de grupos');
+        agregarAccionBloque(bloque, 'Sorteo aleatorio', 'sortear-futbol', null, 'admin-sorteo');
         agregarAccionBloque(bloque, 'Actualizar tablas', 'refrescar-editor');
         agregarAccionBloque(bloque, '+ Grupo', 'add-grupo');
 
@@ -1204,8 +1215,9 @@
         const camposSlots = crear('div', 'admin-llaves-partido-campos');
 
         const equipos = Array.isArray(grupo.equipos) ? grupo.equipos : [];
+        const totalSlots = Math.max(3, equipos.length);
 
-        for (let posicion = 0; posicion < 3; posicion += 1) {
+        for (let posicion = 0; posicion < totalSlots; posicion += 1) {
             camposSlots.appendChild(crearCampoLlaves(
                 'Equipo ' + (posicion + 1),
                 crearSelectEquipos('futbol', equipos[posicion], {
@@ -1938,6 +1950,59 @@
                 partidos: [combateVacio()]
             });
             cambio = true;
+        } else if (accion === 'sortear-llaves') {
+            const ids = idsEquiposInscriptos(categoria.equipos);
+
+            if (ids.length < 2) {
+                mostrarToast('Cargá al menos 2 equipos en «Equipos inscriptos» para sortear.', true);
+                return;
+            }
+
+            const teniaDatos = (categoria.rondas || []).some(function (ronda) {
+                return (ronda.partidos || []).some(function (partido) {
+                    return partido && (partido.equipoA || partido.equipoB);
+                });
+            });
+
+            if (teniaDatos && !confirm('El sorteo reemplaza los cruces y los resultados ' +
+                'cargados de «' + (categoria.titulo || 'esta pantalla') + '». ¿Sortear igual?')) {
+                return;
+            }
+
+            const sorteo = Logica.sortearLlaves(ids);
+            categoria.rondas = sorteo.rondas;
+            categoria.tercerPuesto = sorteo.tercerPuesto;
+            cambio = true;
+
+            mostrarToast('Sorteo listo: ' + sorteo.equipos + ' equipos · ' +
+                (sorteo.pasesLibres ? sorteo.pasesLibres + ' pase(s) libre(s) · ' : '') +
+                sorteo.rondas.length + ' rondas.');
+        } else if (accion === 'sortear-futbol') {
+            const ids = idsEquiposInscriptos('futbol');
+
+            if (ids.length < 4) {
+                mostrarToast('Cargá al menos 4 equipos de fútbol para armar los grupos.', true);
+                return;
+            }
+
+            const teniaDatos = (categoria.grupos || []).some(function (grupo) {
+                return (grupo.partidos || []).some(function (partido) {
+                    return partido && (partido.equipoA || partido.equipoB);
+                });
+            });
+
+            if (teniaDatos && !confirm('El sorteo reemplaza los grupos y los resultados ' +
+                'cargados de «' + (categoria.titulo || 'esta pantalla') + '». ¿Sortear igual?')) {
+                return;
+            }
+
+            const sorteo = Logica.sortearGruposFutbol(ids);
+            categoria.grupos = sorteo.grupos;
+            categoria.playoffs = sorteo.playoffs;
+            cambio = true;
+
+            mostrarToast('Sorteo listo: ' + sorteo.equipos + ' equipos en ' +
+                sorteo.grupos.length + ' grupos.');
         } else if (accion === 'del-ronda') {
             const ronda = (categoria.rondas || [])[Number(datos.ronda)];
             if (ronda && confirm('¿Quitar la ronda "' + (ronda.nombre || '') +
@@ -2383,7 +2448,8 @@
             equipoB: datos.equipoB || null,
             puntosA: numeroONull(datos.puntosA),
             puntosB: numeroONull(datos.puntosB),
-            estado: estadoValido(datos.estado)
+            estado: estadoValido(datos.estado),
+            paseLibre: datos.paseLibre === true
         };
     }
 
@@ -2404,6 +2470,11 @@
     function aplicarCampoCombate(partido, campo, valor) {
         if (campo === 'equipoA' || campo === 'equipoB') {
             partido[campo] = valor || null;
+
+            // Al editar los equipos, el cruce deja de ser un pase libre
+            // automático del sorteo y pasa a jugarse normalmente.
+            partido.paseLibre = false;
+
             return;
         }
 
@@ -2624,7 +2695,8 @@
             equipoB: null,
             puntosA: null,
             puntosB: null,
-            estado: 'pendiente'
+            estado: 'pendiente',
+            paseLibre: false
         };
     }
 
@@ -2715,6 +2787,13 @@
         return select;
     }
 
+    /** Ids de los equipos inscriptos de una categoría, en orden alfabético. */
+    function idsEquiposInscriptos(claveCategoria) {
+        return Logica.equiposDeCategoria(llavesTrabajo, claveCategoria).map(function (equipo) {
+            return equipo.id;
+        });
+    }
+
     function crearSelectEquipos(claveCategoria, valor, dataset) {
         const select = document.createElement('select');
 
@@ -2788,10 +2867,10 @@
         return bloque;
     }
 
-    function agregarAccionBloque(bloque, texto, accion, dataset) {
+    function agregarAccionBloque(bloque, texto, accion, dataset, clase) {
         const cabecera = bloque.querySelector('.admin-llaves-bloque-head');
         if (cabecera) {
-            cabecera.appendChild(crearBotonLlaves(texto, 'ghost', accion, dataset));
+            cabecera.appendChild(crearBotonLlaves(texto, clase || 'ghost', accion, dataset));
         }
     }
 
